@@ -91,6 +91,7 @@ function statusClass(status: string) {
 interface UploadLimits {
   maxFileSizeBytes: number
   maxDurationSeconds: number
+  qrExpirationMinutes: number
 }
 
 interface Toast {
@@ -111,10 +112,11 @@ function App({ token, user, onLogout }: AppProps) {
   const [dragging, setDragging] = useState(false)
   const [playingVideo, setPlayingVideo] = useState<VideoItem | null>(null)
   const [loading, setLoading] = useState(true)
-  const [limits, setLimits] = useState<UploadLimits>({ maxFileSizeBytes: 5 * 1024 * 1024, maxDurationSeconds: 60 })
+  const [limits, setLimits] = useState<UploadLimits>({ maxFileSizeBytes: 5 * 1024 * 1024, maxDurationSeconds: 60, qrExpirationMinutes: 30 })
   const [showSettings, setShowSettings] = useState(false)
   const [editSizeMB, setEditSizeMB] = useState('5')
   const [editDurationSec, setEditDurationSec] = useState('60')
+  const [editQrExpMin, setEditQrExpMin] = useState('30')
   const [savingSettings, setSavingSettings] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [rejection, setRejection] = useState<FileRejection | null>(null)
@@ -154,6 +156,7 @@ function App({ token, user, onLogout }: AppProps) {
         setLimits(data)
         setEditSizeMB(String(data.maxFileSizeBytes / (1024 * 1024)))
         setEditDurationSec(String(data.maxDurationSeconds))
+        setEditQrExpMin(String(data.qrExpirationMinutes))
       }
     } catch (err) {
       console.error('Failed to fetch upload limits:', err)
@@ -163,7 +166,8 @@ function App({ token, user, onLogout }: AppProps) {
   const saveLimits = useCallback(async () => {
     const sizeMB = parseFloat(editSizeMB)
     const durationSec = parseInt(editDurationSec)
-    if (isNaN(sizeMB) || sizeMB <= 0 || isNaN(durationSec) || durationSec <= 0) return
+    const qrExpMin = parseInt(editQrExpMin)
+    if (isNaN(sizeMB) || sizeMB <= 0 || isNaN(durationSec) || durationSec <= 0 || isNaN(qrExpMin) || qrExpMin <= 0) return
 
     setSavingSettings(true)
     try {
@@ -173,6 +177,7 @@ function App({ token, user, onLogout }: AppProps) {
         body: JSON.stringify({
           maxFileSizeBytes: Math.round(sizeMB * 1024 * 1024),
           maxDurationSeconds: durationSec,
+          qrExpirationMinutes: qrExpMin,
         }),
       })
       if (res.ok) {
@@ -180,7 +185,8 @@ function App({ token, user, onLogout }: AppProps) {
         setLimits(data)
         setEditSizeMB(String(data.maxFileSizeBytes / (1024 * 1024)))
         setEditDurationSec(String(data.maxDurationSeconds))
-        addToast('success', `Limits updated — ${data.maxFileSizeBytes / (1024 * 1024)} MB, ${data.maxDurationSeconds}s`)
+        setEditQrExpMin(String(data.qrExpirationMinutes))
+        addToast('success', `Limits updated — ${data.maxFileSizeBytes / (1024 * 1024)} MB, ${data.maxDurationSeconds}s, QR ${data.qrExpirationMinutes}min`)
       } else {
         addToast('error', 'Failed to save settings')
       }
@@ -190,7 +196,7 @@ function App({ token, user, onLogout }: AppProps) {
     } finally {
       setSavingSettings(false)
     }
-  }, [editSizeMB, editDurationSec, token])
+  }, [editSizeMB, editDurationSec, editQrExpMin, token])
 
   useEffect(() => {
     fetchVideos()
@@ -406,6 +412,20 @@ function App({ token, user, onLogout }: AppProps) {
                     onChange={e => setEditDurationSec(e.target.value)}
                   />
                   <span className="settings-input-unit">sec</span>
+                </div>
+              </div>
+              <div className="settings-bar-divider" />
+              <div className="settings-bar-group">
+                <span className="settings-bar-hint">QR link</span>
+                <div className="settings-input-wrap">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={editQrExpMin}
+                    onChange={e => setEditQrExpMin(e.target.value)}
+                  />
+                  <span className="settings-input-unit">min</span>
                 </div>
               </div>
               <button

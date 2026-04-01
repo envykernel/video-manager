@@ -140,3 +140,31 @@
   border-color: var(--apple-blue);
   color: var(--apple-blue);
 }
+
+/* Expired state */
+.qr-expired {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.qr-expired-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(255, 149, 0, 0.1);
+  color: #c93400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.qr-expired-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--apple-gray-1);
+  margin-bottom: 16px;
+}

@@ -26,12 +26,13 @@ public class MobileUploadController : ControllerBase
     public async Task<IActionResult> CreateToken()
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var limits = await _db.GetUploadLimitsAsync();
 
         var token = new UploadToken
         {
             Token = Guid.NewGuid().ToString("N"),
             UserId = userId,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(30)
+            ExpiresAt = DateTime.UtcNow.AddMinutes(limits.QrExpirationMinutes)
         };
 
         await _db.CreateTokenAsync(token);
@@ -53,7 +54,13 @@ public class MobileUploadController : ControllerBase
     {
         var uploadToken = await _db.GetTokenAsync(token);
         if (uploadToken is null) return NotFound(new { message = "Token expired or invalid" });
-        return Ok(new { expiresAt = uploadToken.ExpiresAt });
+
+        var user = await _db.GetUserByIdAsync(uploadToken.UserId);
+        return Ok(new
+        {
+            expiresAt = uploadToken.ExpiresAt,
+            displayName = user?.DisplayName ?? "User"
+        });
     }
 
     private static int ParseDurationSeconds(string duration)

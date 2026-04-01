@@ -89,18 +89,22 @@ public class UploadLimits
     public long MaxFileSizeBytes { get; set; } = 5 * 1024 * 1024; // 5 MB
 
     public int MaxDurationSeconds { get; set; } = 60; // 1 minute
+
+    public int QrExpirationMinutes { get; set; } = 30;
 }
 
 public class UploadLimitsRequest
 {
     public long MaxFileSizeBytes { get; set; }
     public int MaxDurationSeconds { get; set; }
+    public int QrExpirationMinutes { get; set; }
 }
 
 public class UploadLimitsResponse
 {
     public long MaxFileSizeBytes { get; set; }
     public int MaxDurationSeconds { get; set; }
+    public int QrExpirationMinutes { get; set; }
 }
 
 public class LoginRequest

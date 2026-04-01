@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { Upload, CheckCircle, AlertCircle, Film, Loader2 } from 'lucide-react'
+import { Upload, CheckCircle, AlertCircle, Film, Loader2, Clock, User } from 'lucide-react'
 import './MobileUploadPage.css'
 
 const API_BASE = '/api'
@@ -40,12 +40,22 @@ export default function MobileUploadPage() {
   const [upload, setUpload] = useState<UploadState | null>(null)
   const [uploadCount, setUploadCount] = useState(0)
   const [limits, setLimits] = useState({ maxFileSizeBytes: 5 * 1024 * 1024, maxDurationSeconds: 60 })
+  const [expiresAt, setExpiresAt] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState('')
+  const [timeLeft, setTimeLeft] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch(`${API_BASE}/mobile-upload/token/${token}/validate`)
-      .then(res => {
-        setValid(res.ok)
+      .then(async res => {
+        if (res.ok) {
+          const data = await res.json()
+          setExpiresAt(data.expiresAt)
+          setDisplayName(data.displayName || 'User')
+          setValid(true)
+        } else {
+          setValid(false)
+        }
       })
       .catch(() => setValid(false))
 
@@ -54,6 +64,24 @@ export default function MobileUploadPage() {
       .then(data => { if (data) setLimits(data) })
       .catch(() => {})
   }, [token])
+
+  useEffect(() => {
+    if (!expiresAt) return
+    const tick = () => {
+      const remaining = new Date(expiresAt).getTime() - Date.now()
+      if (remaining <= 0) {
+        setTimeLeft('Expired')
+        setValid(false)
+      } else {
+        const mins = Math.floor(remaining / 60000)
+        const secs = Math.floor((remaining % 60000) / 1000)
+        setTimeLeft(`${mins}:${secs.toString().padStart(2, '0')}`)
+      }
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [expiresAt])
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('video/')) return
@@ -129,10 +157,10 @@ export default function MobileUploadPage() {
 
   if (valid === null) {
     return (
-      <div className="mobile-page">
-        <div className="mobile-center">
-          <Loader2 size={32} className="spinner" />
-          <p>Verifying link...</p>
+      <div className="m-page">
+        <div className="m-center">
+          <Loader2 size={28} className="spinner" />
+          <p className="m-center-text">Verifying link...</p>
         </div>
       </div>
     )
@@ -140,90 +168,117 @@ export default function MobileUploadPage() {
 
   if (!valid) {
     return (
-      <div className="mobile-page">
-        <div className="mobile-center">
-          <div className="mobile-icon error">
-            <AlertCircle size={32} />
+      <div className="m-page">
+        <div className="m-center">
+          <div className="m-expired-icon">
+            <AlertCircle size={28} />
           </div>
-          <h2>Link Expired</h2>
-          <p>This upload link is no longer valid. Please scan a new QR code on your computer.</p>
+          <h2 className="m-center-title">Link Expired</h2>
+          <p className="m-center-text">Scan a new QR code from your computer to upload.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="mobile-page">
-      <div className="mobile-header">
-        <Film size={20} />
-        <span>Video Platform</span>
+    <div className="m-page">
+      <div className="m-nav">
+        <div className="m-nav-left">
+          <Film size={16} />
+          <span>Video Platform</span>
+        </div>
+        <div className="m-nav-user">
+          <User size={12} />
+          <span>{displayName}</span>
+        </div>
       </div>
 
-      <div className="mobile-content">
-        <h1>Upload from Phone</h1>
-        <p className="mobile-subtitle">Choose a video to upload directly from your phone</p>
-
-        {uploadCount > 0 && !upload && (
-          <div className="mobile-success-banner">
-            <CheckCircle size={16} />
-            {uploadCount} video{uploadCount > 1 ? 's' : ''} uploaded successfully
+      <div className="m-body">
+        <div className="m-content">
+          <div className="m-hero-icon">
+            <Upload size={20} />
           </div>
-        )}
+          <h1 className="m-title">Upload Video</h1>
+          <p className="m-hint">
+            Max {limits.maxFileSizeBytes / (1024 * 1024)} MB, {limits.maxDurationSeconds}s
+          </p>
 
-        {!upload && (
-          <>
-            <button className="mobile-upload-btn" onClick={() => fileInputRef.current?.click()}>
-              <Upload size={22} />
-              Choose Video
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="video/*"
-              onChange={handleFileSelect}
-              hidden
-            />
-          </>
-        )}
-
-        {upload && (
-          <div className="mobile-upload-card">
-            <div className="mobile-file-name">{upload.file.name}</div>
-            <div className="mobile-file-size">{formatFileSize(upload.file.size)}</div>
-
-            <div className="mobile-progress-bg">
-              <div
-                className={`mobile-progress-bar ${upload.status === 'complete' ? 'complete' : ''} ${upload.status === 'error' ? 'error' : ''}`}
-                style={{ width: `${upload.progress}%` }}
-              />
+          {uploadCount > 0 && !upload && (
+            <div className="m-success">
+              <CheckCircle size={13} />
+              {uploadCount} video{uploadCount > 1 ? 's' : ''} uploaded
             </div>
+          )}
 
-            <div className="mobile-progress-text">
-              {upload.status === 'uploading' && `Uploading... ${Math.round(upload.progress)}%`}
-              {upload.status === 'complete' && 'Upload complete!'}
-              {upload.status === 'error' && upload.error}
-            </div>
-
-            {upload.status === 'complete' && (
-              <div className="mobile-done">
-                <div className="mobile-check">
-                  <CheckCircle size={48} />
-                </div>
-                <p>Video sent to your computer</p>
-                <button className="mobile-another-btn" onClick={() => setUpload(null)}>
-                  Upload Another
-                </button>
-              </div>
-            )}
-
-            {upload.status === 'error' && (
-              <button className="mobile-another-btn" onClick={() => setUpload(null)}>
-                Try Again
+          {!upload && (
+            <>
+              <button className="m-upload-btn" onClick={() => fileInputRef.current?.click()}>
+                <Upload size={16} />
+                Choose Video
               </button>
-            )}
-          </div>
-        )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="video/*"
+                onChange={handleFileSelect}
+                hidden
+              />
+            </>
+          )}
+
+          {upload && (
+            <div className="m-card">
+              <div className="m-card-top">
+                <div className="m-card-file-icon">
+                  <Film size={14} />
+                </div>
+                <div className="m-card-info">
+                  <div className="m-card-name">{upload.file.name}</div>
+                  <div className="m-card-size">{formatFileSize(upload.file.size)}</div>
+                </div>
+              </div>
+
+              <div className="m-progress-bg">
+                <div
+                  className={`m-progress-bar ${upload.status === 'complete' ? 'complete' : ''} ${upload.status === 'error' ? 'error' : ''}`}
+                  style={{ width: `${upload.progress}%` }}
+                />
+              </div>
+
+              <div className="m-progress-label">
+                {upload.status === 'uploading' && `${Math.round(upload.progress)}%`}
+                {upload.status === 'complete' && 'Done'}
+                {upload.status === 'error' && upload.error}
+              </div>
+
+              {upload.status === 'complete' && (
+                <div className="m-complete">
+                  <CheckCircle size={32} className="m-complete-icon" />
+                  <p>Sent to {displayName}'s library</p>
+                  <button className="m-btn-secondary" onClick={() => setUpload(null)}>
+                    Upload Another
+                  </button>
+                </div>
+              )}
+
+              {upload.status === 'error' && (
+                <div style={{ textAlign: 'center' }}>
+                  <button className="m-btn-secondary" onClick={() => setUpload(null)}>
+                    Try Again
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+
+      {timeLeft && timeLeft !== 'Expired' && (
+        <div className="m-footer">
+          <Clock size={12} />
+          <span>Session expires in {timeLeft}</span>
+        </div>
+      )}
     </div>
   )
 }

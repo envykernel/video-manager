@@ -24,15 +24,21 @@ public class MobilePageController : Controller
             min-height: 100dvh;
         }
         .header {
-            display: flex; align-items: center; gap: 8px;
-            padding: 16px 20px;
-            font-size: 17px; font-weight: 600;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px;
+            font-size: 15px; font-weight: 600;
             background: rgba(255,255,255,0.72);
             backdrop-filter: saturate(180%) blur(20px);
             -webkit-backdrop-filter: saturate(180%) blur(20px);
             border-bottom: 1px solid #d2d2d7;
         }
         .header svg { color: #007aff; }
+        .user-badge {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 12px; font-weight: 500; color: #86868b;
+            background: #f5f5f7; padding: 4px 10px; border-radius: 980px;
+        }
+        .user-badge svg { color: #007aff; }
         .content { padding: 32px 20px; }
         h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.04em; margin-bottom: 8px; }
         .subtitle { font-size: 15px; color: #86868b; margin-bottom: 32px; }
@@ -84,6 +90,12 @@ public class MobilePageController : Controller
         }
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .session-timer {
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 8px 14px; background: rgba(255,149,0,0.08); color: #c93400;
+            border-radius: 10px; font-size: 13px; font-weight: 600;
+            font-variant-numeric: tabular-nums; margin-bottom: 20px;
+        }
         .hidden { display: none; }
     </style>
 </head>
@@ -103,12 +115,20 @@ public class MobilePageController : Controller
 
     <div id="app" class="hidden">
         <div class="header">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m10 8 6 4-6 4Z"/></svg>
-            <span>Video Platform</span>
+            <div style="display:flex;align-items:center;gap:7px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m10 8 6 4-6 4Z"/></svg>
+                <span>Video Platform</span>
+            </div>
+            <div id="user-badge" class="user-badge hidden">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span id="user-name"></span>
+            </div>
         </div>
         <div class="content">
             <h1>Upload from Phone</h1>
             <p class="subtitle">Choose a video to upload directly from your phone</p>
+
+            <div id="session-timer" class="session-timer hidden"></div>
 
             <div id="success-banner" class="success-banner hidden">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -169,14 +189,46 @@ public class MobilePageController : Controller
         function show(id) { document.getElementById(id).classList.remove('hidden'); }
         function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
+        let tokenExpiresAt = null;
+
         // Validate token
         fetch(API + '/mobile-upload/token/' + TOKEN + '/validate')
             .then(r => {
                 hide('loading');
-                if (r.ok) show('app');
-                else show('expired');
+                if (r.ok) {
+                    return r.json().then(data => {
+                        tokenExpiresAt = new Date(data.expiresAt).getTime();
+                        if (data.displayName) {
+                            document.getElementById('user-name').textContent = data.displayName;
+                            show('user-badge');
+                        }
+                        show('app');
+                        startExpirationTimer();
+                    });
+                } else {
+                    show('expired');
+                }
             })
             .catch(() => { hide('loading'); show('expired'); });
+
+        function startExpirationTimer() {
+            if (!tokenExpiresAt) return;
+            const timerEl = document.getElementById('session-timer');
+            const tick = () => {
+                const remaining = tokenExpiresAt - Date.now();
+                if (remaining <= 0) {
+                    hide('app');
+                    show('expired');
+                    return;
+                }
+                const mins = Math.floor(remaining / 60000);
+                const secs = Math.floor((remaining % 60000) / 1000);
+                timerEl.textContent = 'Session expires in ' + mins + ':' + String(secs).padStart(2, '0');
+                show('session-timer');
+            };
+            tick();
+            setInterval(tick, 1000);
+        }
 
         function getVideoDuration(file) {
             return new Promise(resolve => {

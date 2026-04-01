@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Smartphone, RefreshCw, CheckCircle, Loader2, ExternalLink } from 'lucide-react'
+import { Smartphone, RefreshCw, CheckCircle, Loader2, ExternalLink, Clock } from 'lucide-react'
 import './QRUploadSection.css'
 
 const API_BASE = '/api'
@@ -14,12 +14,14 @@ interface TokenData {
 export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: () => void; token: string }) {
   const [tokenData, setTokenData] = useState<TokenData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [expired, setExpired] = useState(false)
   const [uploadCount, setUploadCount] = useState(0)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const prevCountRef = useRef(0)
 
   const generateToken = async () => {
     setLoading(true)
+    setExpired(false)
     setUploadCount(0)
     prevCountRef.current = 0
     try {
@@ -43,7 +45,7 @@ export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: (
   }, [])
 
   useEffect(() => {
-    if (!tokenData) return
+    if (!tokenData || expired) return
 
     const checkUploads = async () => {
       try {
@@ -63,7 +65,7 @@ export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: (
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [tokenData, onNewUpload])
+  }, [tokenData, onNewUpload, expired])
 
   const [timeLeft, setTimeLeft] = useState('')
   useEffect(() => {
@@ -72,7 +74,8 @@ export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: (
       const remaining = new Date(tokenData.expiresAt).getTime() - Date.now()
       if (remaining <= 0) {
         setTimeLeft('Expired')
-        setTokenData(null)
+        setExpired(true)
+        generateToken()
       } else {
         const mins = Math.floor(remaining / 60000)
         const secs = Math.floor((remaining % 60000) / 1000)
@@ -91,12 +94,23 @@ export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: (
         <h3>Upload from Phone</h3>
       </div>
 
-      {!tokenData ? (
+      {loading ? (
         <div className="qr-generate">
           <Loader2 size={24} className="spinner" />
           <p>Generating QR code...</p>
         </div>
-      ) : (
+      ) : expired ? (
+        <div className="qr-expired">
+          <div className="qr-expired-icon">
+            <Clock size={28} />
+          </div>
+          <p className="qr-expired-text">QR code session expired</p>
+          <button className="qr-refresh-btn" onClick={generateToken}>
+            <RefreshCw size={14} />
+            Generate New QR Code
+          </button>
+        </div>
+      ) : tokenData ? (
         <div className="qr-active">
           <div className="qr-code-wrapper">
             <QRCodeSVG value={tokenData.mobileUrl} size={150} level="M" />
@@ -127,7 +141,7 @@ export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: (
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

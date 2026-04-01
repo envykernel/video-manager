@@ -24,7 +24,8 @@ public class SettingsController : ControllerBase
         return Ok(new UploadLimitsResponse
         {
             MaxFileSizeBytes = limits.MaxFileSizeBytes,
-            MaxDurationSeconds = limits.MaxDurationSeconds
+            MaxDurationSeconds = limits.MaxDurationSeconds,
+            QrExpirationMinutes = limits.QrExpirationMinutes
         });
     }
 
@@ -39,10 +40,14 @@ public class SettingsController : ControllerBase
         if (request.MaxDurationSeconds <= 0)
             return BadRequest(new { message = "Max duration must be greater than 0." });
 
+        if (request.QrExpirationMinutes <= 0)
+            return BadRequest(new { message = "QR expiration must be greater than 0." });
+
         var limits = new UploadLimits
         {
             MaxFileSizeBytes = request.MaxFileSizeBytes,
-            MaxDurationSeconds = request.MaxDurationSeconds
+            MaxDurationSeconds = request.MaxDurationSeconds,
+            QrExpirationMinutes = request.QrExpirationMinutes
         };
 
         await _db.UpdateUploadLimitsAsync(limits);
@@ -50,7 +55,8 @@ public class SettingsController : ControllerBase
         return Ok(new UploadLimitsResponse
         {
             MaxFileSizeBytes = limits.MaxFileSizeBytes,
-            MaxDurationSeconds = limits.MaxDurationSeconds
+            MaxDurationSeconds = limits.MaxDurationSeconds,
+            QrExpirationMinutes = limits.QrExpirationMinutes
         });
     }
 }

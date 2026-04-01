@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using BackendApi.Models;
 using BackendApi.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BackendApi.Controllers;
@@ -20,11 +22,15 @@ public class MobileUploadController : ControllerBase
     }
 
     [HttpPost("token")]
+    [Authorize]
     public async Task<IActionResult> CreateToken()
     {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
         var token = new UploadToken
         {
             Token = Guid.NewGuid().ToString("N"),
+            UserId = userId,
             ExpiresAt = DateTime.UtcNow.AddMinutes(30)
         };
 
@@ -42,6 +48,7 @@ public class MobileUploadController : ControllerBase
     }
 
     [HttpGet("token/{token}/validate")]
+    [AllowAnonymous]
     public async Task<IActionResult> ValidateToken(string token)
     {
         var uploadToken = await _db.GetTokenAsync(token);
@@ -49,12 +56,29 @@ public class MobileUploadController : ControllerBase
         return Ok(new { expiresAt = uploadToken.ExpiresAt });
     }
 
+    private static int ParseDurationSeconds(string duration)
+    {
+        var parts = duration.Split(':');
+        if (parts.Length == 2 && int.TryParse(parts[0], out var m) && int.TryParse(parts[1], out var s))
+            return m * 60 + s;
+        return 0;
+    }
+
     [HttpPost("token/{token}/upload")]
+    [AllowAnonymous]
     public async Task<ActionResult<CreateUploadResponse>> Upload(
         string token, [FromBody] CreateUploadRequest request)
     {
         var uploadToken = await _db.GetTokenAsync(token);
         if (uploadToken is null) return NotFound(new { message = "Token expired or invalid" });
+
+        var limits = await _db.GetUploadLimitsAsync();
+
+        if (request.Size > limits.MaxFileSizeBytes)
+            return BadRequest(new { message = $"File size exceeds the {limits.MaxFileSizeBytes / (1024 * 1024)} MB limit." });
+
+        if (ParseDurationSeconds(request.Duration) > limits.MaxDurationSeconds)
+            return BadRequest(new { message = $"Video duration exceeds the {limits.MaxDurationSeconds} second limit." });
 
         var (uploadId, uploadUrl) = await _mux.CreateDirectUploadAsync();
 
@@ -65,6 +89,7 @@ public class MobileUploadController : ControllerBase
             Duration = request.Duration,
             MuxUploadId = uploadId,
             UploadToken = token,
+            UserId = uploadToken.UserId,
             Status = "waiting_for_upload"
         };
 
@@ -78,6 +103,7 @@ public class MobileUploadController : ControllerBase
     }
 
     [HttpGet("token/{token}/videos")]
+    [AllowAnonymous]
     public async Task<ActionResult<List<VideoResponse>>> GetVideosByToken(string token)
     {
         var uploadToken = await _db.GetTokenAsync(token);

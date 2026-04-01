@@ -3,6 +3,21 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace BackendApi.Models;
 
+public class User
+{
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? Id { get; set; }
+
+    public string Username { get; set; } = string.Empty;
+
+    public string DisplayName { get; set; } = string.Empty;
+
+    public string PasswordHash { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 public class Video
 {
     [BsonId]
@@ -22,6 +37,8 @@ public class Video
     public string? MuxUploadId { get; set; }
 
     public string? UploadToken { get; set; }
+
+    public string UserId { get; set; } = string.Empty;
 
     public string Status { get; set; } = "waiting_for_upload";
 
@@ -61,4 +78,41 @@ public class VideoResponse
         Status = video.Status,
         CreatedAt = video.CreatedAt
     };
+}
+
+public class UploadLimits
+{
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? Id { get; set; }
+
+    public long MaxFileSizeBytes { get; set; } = 5 * 1024 * 1024; // 5 MB
+
+    public int MaxDurationSeconds { get; set; } = 60; // 1 minute
+}
+
+public class UploadLimitsRequest
+{
+    public long MaxFileSizeBytes { get; set; }
+    public int MaxDurationSeconds { get; set; }
+}
+
+public class UploadLimitsResponse
+{
+    public long MaxFileSizeBytes { get; set; }
+    public int MaxDurationSeconds { get; set; }
+}
+
+public class LoginRequest
+{
+    public string Username { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+}
+
+public class LoginResponse
+{
+    public string Token { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
 }

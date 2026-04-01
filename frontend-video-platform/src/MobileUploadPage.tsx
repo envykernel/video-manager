@@ -18,7 +18,7 @@ function formatFileSize(bytes: number): string {
   return (bytes / 1_000).toFixed(1) + ' KB'
 }
 
-function getVideoDuration(file: File): Promise<string> {
+function getVideoDuration(file: File): Promise<{ formatted: string; totalSeconds: number }> {
   return new Promise((resolve) => {
     const video = document.createElement('video')
     video.preload = 'metadata'
@@ -27,9 +27,9 @@ function getVideoDuration(file: File): Promise<string> {
       const totalSeconds = Math.floor(video.duration)
       const minutes = Math.floor(totalSeconds / 60)
       const seconds = totalSeconds % 60
-      resolve(`${minutes}:${seconds.toString().padStart(2, '0')}`)
+      resolve({ formatted: `${minutes}:${seconds.toString().padStart(2, '0')}`, totalSeconds })
     }
-    video.onerror = () => resolve('0:00')
+    video.onerror = () => resolve({ formatted: '0:00', totalSeconds: 0 })
     video.src = URL.createObjectURL(file)
   })
 }
@@ -39,6 +39,7 @@ export default function MobileUploadPage() {
   const [valid, setValid] = useState<boolean | null>(null)
   const [upload, setUpload] = useState<UploadState | null>(null)
   const [uploadCount, setUploadCount] = useState(0)
+  const [limits, setLimits] = useState({ maxFileSizeBytes: 5 * 1024 * 1024, maxDurationSeconds: 60 })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -47,15 +48,30 @@ export default function MobileUploadPage() {
         setValid(res.ok)
       })
       .catch(() => setValid(false))
+
+    fetch(`${API_BASE}/settings/upload-limits`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setLimits(data) })
+      .catch(() => {})
   }, [token])
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('video/')) return
 
+    if (file.size > limits.maxFileSizeBytes) {
+      setUpload({ file, progress: 0, status: 'error', error: `File size exceeds the ${limits.maxFileSizeBytes / (1024 * 1024)} MB limit.` })
+      return
+    }
+
     setUpload({ file, progress: 0, status: 'uploading' })
 
     try {
-      const duration = await getVideoDuration(file)
+      const { formatted: duration, totalSeconds } = await getVideoDuration(file)
+
+      if (totalSeconds > limits.maxDurationSeconds) {
+        setUpload(prev => prev ? { ...prev, status: 'error', error: `Video duration exceeds the ${limits.maxDurationSeconds} second limit.` } : null)
+        return
+      }
 
       const createRes = await fetch(`${API_BASE}/mobile-upload/token/${token}/upload`, {
         method: 'POST',
@@ -63,7 +79,14 @@ export default function MobileUploadPage() {
         body: JSON.stringify({ name: file.name, size: file.size, duration }),
       })
 
-      if (!createRes.ok) throw new Error('Failed to create upload')
+      if (!createRes.ok) {
+        let msg = 'Upload rejected by server'
+        try {
+          const errJson = await createRes.json()
+          if (errJson.message) msg = errJson.message
+        } catch { /* non-JSON response */ }
+        throw new Error(msg)
+      }
 
       const { uploadUrl } = await createRes.json()
 
@@ -96,7 +119,7 @@ export default function MobileUploadPage() {
         error: err instanceof Error ? err.message : 'Upload failed',
       } : null)
     }
-  }, [token])
+  }, [token, limits])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

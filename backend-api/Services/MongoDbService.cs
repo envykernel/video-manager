@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using BackendApi.Models;
 using MongoDB.Driver;
 
@@ -7,6 +9,8 @@ public class MongoDbService
 {
     private readonly IMongoCollection<Video> _videos;
     private readonly IMongoCollection<UploadToken> _uploadTokens;
+    private readonly IMongoCollection<User> _users;
+    private readonly IMongoCollection<UploadLimits> _uploadLimits;
 
     public MongoDbService(IConfiguration configuration)
     {
@@ -19,10 +23,55 @@ public class MongoDbService
         var database = client.GetDatabase(databaseName);
         _videos = database.GetCollection<Video>("videos");
         _uploadTokens = database.GetCollection<UploadToken>("upload_tokens");
+        _users = database.GetCollection<User>("users");
+        _uploadLimits = database.GetCollection<UploadLimits>("upload_limits");
+
+        SeedUsersAsync().GetAwaiter().GetResult();
     }
 
-    public async Task<List<Video>> GetAllAsync() =>
-        await _videos.Find(_ => true)
+    public static string HashPassword(string password)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(bytes);
+    }
+
+    public static bool VerifyPassword(string password, string hash) =>
+        HashPassword(password) == hash;
+
+    private async Task SeedUsersAsync()
+    {
+        var count = await _users.CountDocumentsAsync(_ => true);
+        if (count > 0) return;
+
+        var users = new List<User>
+        {
+            new()
+            {
+                Username = "sara",
+                DisplayName = "Sara",
+                PasswordHash = HashPassword("sara123")
+            },
+            new()
+            {
+                Username = "helene",
+                DisplayName = "Helene",
+                PasswordHash = HashPassword("helene123")
+            }
+        };
+
+        await _users.InsertManyAsync(users);
+    }
+
+    // Users
+    public async Task<User?> GetUserByUsernameAsync(string username) =>
+        await _users.Find(u => u.Username == username).FirstOrDefaultAsync();
+
+    public async Task<User?> GetUserByIdAsync(string id) =>
+        await _users.Find(u => u.Id == id).FirstOrDefaultAsync();
+
+    // Videos — filtered by user
+    public async Task<List<Video>> GetAllByUserAsync(string userId) =>
+        await _videos.Find(v => v.UserId == userId)
             .SortByDescending(v => v.CreatedAt)
             .ToListAsync();
 
@@ -62,4 +111,29 @@ public class MongoDbService
         await _videos.Find(v => v.UploadToken == tokenValue)
             .SortByDescending(v => v.CreatedAt)
             .ToListAsync();
+
+    // Upload limits
+    public async Task<UploadLimits> GetUploadLimitsAsync()
+    {
+        var limits = await _uploadLimits.Find(_ => true).FirstOrDefaultAsync();
+        if (limits is not null) return limits;
+
+        limits = new UploadLimits();
+        await _uploadLimits.InsertOneAsync(limits);
+        return limits;
+    }
+
+    public async Task UpdateUploadLimitsAsync(UploadLimits limits)
+    {
+        var existing = await _uploadLimits.Find(_ => true).FirstOrDefaultAsync();
+        if (existing is not null)
+        {
+            limits.Id = existing.Id;
+            await _uploadLimits.ReplaceOneAsync(l => l.Id == existing.Id, limits);
+        }
+        else
+        {
+            await _uploadLimits.InsertOneAsync(limits);
+        }
+    }
 }

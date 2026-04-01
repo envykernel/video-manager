@@ -1,13 +1,26 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   Upload, Play, X, Film, Clock, HardDrive, CloudUpload, Video,
-  Trash2, RefreshCw, AlertCircle, Loader2,
+  Trash2, RefreshCw, AlertCircle, Loader2, LogOut, User, Settings,
+  ShieldAlert, CheckCircle2,
 } from 'lucide-react'
 import MuxPlayer from '@mux/mux-player-react'
 import QRUploadSection from './QRUploadSection'
 import './App.css'
 
 const API_BASE = '/api'
+
+interface UserInfo {
+  userId: string
+  username: string
+  displayName: string
+}
+
+interface AppProps {
+  token: string
+  user: UserInfo
+  onLogout: () => void
+}
 
 interface VideoItem {
   id: string
@@ -39,7 +52,7 @@ function formatDate(date: string): string {
   })
 }
 
-function getVideoDuration(file: File): Promise<string> {
+function getVideoDuration(file: File): Promise<{ formatted: string; totalSeconds: number }> {
   return new Promise((resolve) => {
     const video = document.createElement('video')
     video.preload = 'metadata'
@@ -48,9 +61,9 @@ function getVideoDuration(file: File): Promise<string> {
       const totalSeconds = Math.floor(video.duration)
       const minutes = Math.floor(totalSeconds / 60)
       const seconds = totalSeconds % 60
-      resolve(`${minutes}:${seconds.toString().padStart(2, '0')}`)
+      resolve({ formatted: `${minutes}:${seconds.toString().padStart(2, '0')}`, totalSeconds })
     }
-    video.onerror = () => resolve('0:00')
+    video.onerror = () => resolve({ formatted: '0:00', totalSeconds: 0 })
     video.src = URL.createObjectURL(file)
   })
 }
@@ -75,19 +88,53 @@ function statusClass(status: string) {
   }
 }
 
-function App() {
+interface UploadLimits {
+  maxFileSizeBytes: number
+  maxDurationSeconds: number
+}
+
+interface Toast {
+  id: number
+  type: 'success' | 'error'
+  message: string
+}
+
+interface FileRejection {
+  fileName: string
+  fileSize: number
+  reason: string
+}
+
+function App({ token, user, onLogout }: AppProps) {
   const [videos, setVideos] = useState<VideoItem[]>([])
   const [upload, setUpload] = useState<UploadState | null>(null)
   const [dragging, setDragging] = useState(false)
   const [playingVideo, setPlayingVideo] = useState<VideoItem | null>(null)
   const [loading, setLoading] = useState(true)
+  const [limits, setLimits] = useState<UploadLimits>({ maxFileSizeBytes: 5 * 1024 * 1024, maxDurationSeconds: 60 })
+  const [showSettings, setShowSettings] = useState(false)
+  const [editSizeMB, setEditSizeMB] = useState('5')
+  const [editDurationSec, setEditDurationSec] = useState('60')
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const [rejection, setRejection] = useState<FileRejection | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Fetch videos from backend
+  const authHeaders = {
+    Authorization: `Bearer ${token}`,
+  }
+
+  const addToast = useCallback((type: 'success' | 'error', message: string) => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, type, message }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500)
+  }, [])
+
   const fetchVideos = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/videos`)
+      const res = await fetch(`${API_BASE}/videos`, { headers: authHeaders })
+      if (res.status === 401) { onLogout(); return }
       if (res.ok) {
         const data = await res.json()
         setVideos(data)
@@ -97,13 +144,59 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }, [token])
+
+  const fetchLimits = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/settings/upload-limits`)
+      if (res.ok) {
+        const data: UploadLimits = await res.json()
+        setLimits(data)
+        setEditSizeMB(String(data.maxFileSizeBytes / (1024 * 1024)))
+        setEditDurationSec(String(data.maxDurationSeconds))
+      }
+    } catch (err) {
+      console.error('Failed to fetch upload limits:', err)
+    }
   }, [])
+
+  const saveLimits = useCallback(async () => {
+    const sizeMB = parseFloat(editSizeMB)
+    const durationSec = parseInt(editDurationSec)
+    if (isNaN(sizeMB) || sizeMB <= 0 || isNaN(durationSec) || durationSec <= 0) return
+
+    setSavingSettings(true)
+    try {
+      const res = await fetch(`${API_BASE}/settings/upload-limits`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          maxFileSizeBytes: Math.round(sizeMB * 1024 * 1024),
+          maxDurationSeconds: durationSec,
+        }),
+      })
+      if (res.ok) {
+        const data: UploadLimits = await res.json()
+        setLimits(data)
+        setEditSizeMB(String(data.maxFileSizeBytes / (1024 * 1024)))
+        setEditDurationSec(String(data.maxDurationSeconds))
+        addToast('success', `Limits updated — ${data.maxFileSizeBytes / (1024 * 1024)} MB, ${data.maxDurationSeconds}s`)
+      } else {
+        addToast('error', 'Failed to save settings')
+      }
+    } catch (err) {
+      console.error('Failed to save upload limits:', err)
+      addToast('error', 'Failed to save settings')
+    } finally {
+      setSavingSettings(false)
+    }
+  }, [editSizeMB, editDurationSec, token])
 
   useEffect(() => {
     fetchVideos()
-  }, [fetchVideos])
+    fetchLimits()
+  }, [fetchVideos, fetchLimits])
 
-  // Poll for video status updates when any video is processing
   useEffect(() => {
     const hasProcessing = videos.some(
       v => v.status === 'processing' || v.status === 'waiting_for_upload'
@@ -118,16 +211,35 @@ function App() {
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('video/')) return
+    setRejection(null)
+
+    if (file.size > limits.maxFileSizeBytes) {
+      setRejection({
+        fileName: file.name,
+        fileSize: file.size,
+        reason: `File is ${formatFileSize(file.size)} — exceeds the ${limits.maxFileSizeBytes / (1024 * 1024)} MB limit`,
+      })
+      return
+    }
 
     setUpload({ file, progress: 0, status: 'uploading' })
 
     try {
-      const duration = await getVideoDuration(file)
+      const { formatted: duration, totalSeconds } = await getVideoDuration(file)
 
-      // 1. Request a direct upload URL from our backend
+      if (totalSeconds > limits.maxDurationSeconds) {
+        setUpload(null)
+        setRejection({
+          fileName: file.name,
+          fileSize: file.size,
+          reason: `Video is ${totalSeconds}s long — exceeds the ${limits.maxDurationSeconds} second limit`,
+        })
+        return
+      }
+
       const createRes = await fetch(`${API_BASE}/videos/upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           name: file.name,
           size: file.size,
@@ -136,13 +248,17 @@ function App() {
       })
 
       if (!createRes.ok) {
-        const errText = await createRes.text()
-        throw new Error(`Backend error: ${errText}`)
+        if (createRes.status === 401) { onLogout(); return }
+        let msg = 'Upload rejected by server'
+        try {
+          const errJson = await createRes.json()
+          if (errJson.message) msg = errJson.message
+        } catch { /* non-JSON response */ }
+        throw new Error(msg)
       }
 
       const { videoId, uploadUrl } = await createRes.json()
 
-      // 2. Upload the file directly to Mux using PUT
       const xhr = new XMLHttpRequest()
       xhr.open('PUT', uploadUrl)
 
@@ -158,7 +274,6 @@ function App() {
           setUpload(prev => prev ? {
             ...prev, progress: 100, status: 'processing', videoId,
           } : null)
-          // Refresh video list, then clear upload after a delay
           fetchVideos()
           setTimeout(() => setUpload(null), 3000)
         } else {
@@ -183,11 +298,14 @@ function App() {
         error: err instanceof Error ? err.message : 'Upload failed',
       } : null)
     }
-  }, [fetchVideos])
+  }, [fetchVideos, token, limits])
 
   const deleteVideo = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE}/videos/${id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/videos/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+      })
       if (res.ok) {
         setVideos(prev => prev.filter(v => v.id !== id))
         if (playingVideo?.id === id) setPlayingVideo(null)
@@ -195,7 +313,7 @@ function App() {
     } catch (err) {
       console.error('Failed to delete video:', err)
     }
-  }, [playingVideo])
+  }, [playingVideo, token])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -227,9 +345,26 @@ function App() {
             <Video size={24} />
             <span>Video Platform</span>
           </div>
-          <button className="refresh-btn" onClick={fetchVideos} title="Refresh">
-            <RefreshCw size={18} />
-          </button>
+          <div className="nav-right">
+            <div className="nav-user">
+              <User size={16} />
+              <span>{user.displayName}</span>
+            </div>
+            <button className="refresh-btn" onClick={fetchVideos} title="Refresh">
+              <RefreshCw size={18} />
+            </button>
+            <button
+              className={`refresh-btn${showSettings ? ' active' : ''}`}
+              onClick={() => setShowSettings(s => !s)}
+              title="Upload limits"
+            >
+              <Settings size={18} />
+            </button>
+            <button className="logout-btn" onClick={onLogout} title="Sign out">
+              <LogOut size={18} />
+              <span>Sign out</span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -241,6 +376,47 @@ function App() {
           <p className="section-subtitle">
             Drag and drop a file or scan the QR code to upload from your phone
           </p>
+
+          {showSettings && (
+            <div className="settings-bar">
+              <Settings size={15} className="settings-bar-icon" />
+              <span className="settings-bar-label">Limits</span>
+              <div className="settings-bar-group">
+                <span className="settings-bar-hint">Size</span>
+                <div className="settings-input-wrap">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={editSizeMB}
+                    onChange={e => setEditSizeMB(e.target.value)}
+                  />
+                  <span className="settings-input-unit">MB</span>
+                </div>
+              </div>
+              <div className="settings-bar-divider" />
+              <div className="settings-bar-group">
+                <span className="settings-bar-hint">Duration</span>
+                <div className="settings-input-wrap">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={editDurationSec}
+                    onChange={e => setEditDurationSec(e.target.value)}
+                  />
+                  <span className="settings-input-unit">sec</span>
+                </div>
+              </div>
+              <button
+                className="settings-bar-save"
+                onClick={saveLimits}
+                disabled={savingSettings}
+              >
+                {savingSettings ? 'Saving...' : 'Apply'}
+              </button>
+            </div>
+          )}
 
           <div className="upload-row">
             <div
@@ -263,11 +439,11 @@ function App() {
                 Choose File
               </button>
               <div className="upload-formats">
-                MP4, MOV, AVI, WebM, MKV
+                MP4, MOV, AVI, WebM, MKV — Max {limits.maxFileSizeBytes / (1024 * 1024)} MB, {limits.maxDurationSeconds}s
               </div>
             </div>
 
-            <QRUploadSection onNewUpload={fetchVideos} />
+            <QRUploadSection onNewUpload={fetchVideos} token={token} />
           </div>
 
           <input
@@ -277,6 +453,28 @@ function App() {
             onChange={handleFileSelect}
             hidden
           />
+
+          {/* File Rejection Banner */}
+          {rejection && (
+            <div className="rejection-card">
+              <div className="rejection-icon-wrap">
+                <ShieldAlert size={22} />
+              </div>
+              <div className="rejection-body">
+                <div className="rejection-title">Upload blocked</div>
+                <div className="rejection-reason">{rejection.reason}</div>
+                <div className="rejection-file">
+                  <Film size={13} />
+                  <span>{rejection.fileName}</span>
+                  <span className="rejection-dot" />
+                  <span>{formatFileSize(rejection.fileSize)}</span>
+                </div>
+              </div>
+              <button className="rejection-dismiss" onClick={() => setRejection(null)}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
 
           {/* Upload Progress */}
           {upload && (
@@ -432,6 +630,18 @@ function App() {
               style={{ width: '100%', aspectRatio: '16/9' }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Toast notifications */}
+      {toasts.length > 0 && (
+        <div className="toast-container">
+          {toasts.map(toast => (
+            <div key={toast.id} className={`toast toast-${toast.type}`}>
+              {toast.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span>{toast.message}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

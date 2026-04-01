@@ -11,7 +11,7 @@ interface TokenData {
   expiresAt: string
 }
 
-export default function QRUploadSection({ onNewUpload }: { onNewUpload: () => void }) {
+export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: () => void; token: string }) {
   const [tokenData, setTokenData] = useState<TokenData | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploadCount, setUploadCount] = useState(0)
@@ -23,7 +23,10 @@ export default function QRUploadSection({ onNewUpload }: { onNewUpload: () => vo
     setUploadCount(0)
     prevCountRef.current = 0
     try {
-      const res = await fetch(`${API_BASE}/mobile-upload/token`, { method: 'POST' })
+      const res = await fetch(`${API_BASE}/mobile-upload/token`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (res.ok) {
         const data = await res.json()
         setTokenData(data)
@@ -35,12 +38,10 @@ export default function QRUploadSection({ onNewUpload }: { onNewUpload: () => vo
     }
   }
 
-  // Auto-generate on mount
   useEffect(() => {
     generateToken()
   }, [])
 
-  // Poll for new uploads via this token
   useEffect(() => {
     if (!tokenData) return
 
@@ -64,7 +65,6 @@ export default function QRUploadSection({ onNewUpload }: { onNewUpload: () => vo
     }
   }, [tokenData, onNewUpload])
 
-  // Time remaining
   const [timeLeft, setTimeLeft] = useState('')
   useEffect(() => {
     if (!tokenData) return

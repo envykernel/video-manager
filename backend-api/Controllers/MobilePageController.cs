@@ -145,7 +145,20 @@ public class MobilePageController : Controller
     <script>
         const TOKEN = '{{token}}';
         const API = '/api';
+        let MAX_FILE_SIZE = 5 * 1024 * 1024;
+        let MAX_DURATION_SECONDS = 60;
         let uploadCount = 0;
+
+        // Fetch dynamic limits
+        fetch(API + '/settings/upload-limits')
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data) {
+                    MAX_FILE_SIZE = data.maxFileSizeBytes;
+                    MAX_DURATION_SECONDS = data.maxDurationSeconds;
+                }
+            })
+            .catch(() => {});
 
         function formatSize(bytes) {
             if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
@@ -184,6 +197,11 @@ public class MobilePageController : Controller
             if (!file || !file.type.startsWith('video/')) return;
             input.value = '';
 
+            if (file.size > MAX_FILE_SIZE) {
+                alert('File size exceeds the ' + (MAX_FILE_SIZE / (1024 * 1024)) + ' MB limit.');
+                return;
+            }
+
             hide('choose-btn');
             hide('success-banner');
             show('upload-card');
@@ -197,10 +215,18 @@ public class MobilePageController : Controller
             const text = document.getElementById('progress-text');
             bar.style.width = '0%';
             bar.className = 'progress-bar';
-            text.textContent = 'Preparing upload...';
+            text.textContent = 'Checking video duration...';
 
             try {
                 const duration = await getVideoDuration(file);
+                const parts = duration.split(':');
+                const totalSeconds = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                if (totalSeconds > MAX_DURATION_SECONDS) {
+                    bar.classList.add('error');
+                    text.textContent = 'Video duration exceeds the ' + MAX_DURATION_SECONDS + ' second limit.';
+                    show('error-section');
+                    return;
+                }
 
                 const res = await fetch(API + '/mobile-upload/token/' + TOKEN + '/upload', {
                     method: 'POST',
@@ -208,7 +234,11 @@ public class MobilePageController : Controller
                     body: JSON.stringify({ name: file.name, size: file.size, duration })
                 });
 
-                if (!res.ok) throw new Error('Failed to create upload');
+                if (!res.ok) {
+                    let msg = 'Upload rejected by server';
+                    try { const j = await res.json(); if (j.message) msg = j.message; } catch(e) {}
+                    throw new Error(msg);
+                }
                 const { uploadUrl } = await res.json();
 
                 const xhr = new XMLHttpRequest();

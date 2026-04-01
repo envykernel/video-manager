@@ -1,0 +1,142 @@
+.qr-section {
+  background: var(--apple-white);
+  border-radius: 20px;
+  border: 1px solid var(--apple-gray-5);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.qr-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.qr-header svg {
+  color: var(--apple-blue);
+}
+
+.qr-header h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--apple-black);
+}
+
+.qr-generate {
+  text-align: center;
+}
+
+.qr-generate p {
+  font-size: 14px;
+  color: var(--apple-gray-1);
+  margin-bottom: 16px;
+}
+
+.qr-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--apple-blue);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 980px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qr-generate-btn:hover {
+  background: var(--apple-blue-hover);
+}
+
+.qr-generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.qr-active {
+  text-align: center;
+}
+
+.qr-code-wrapper {
+  display: inline-block;
+  padding: 8px;
+}
+
+.qr-instruction {
+  font-size: 14px;
+  color: var(--apple-gray-1);
+  margin-top: 12px;
+}
+
+.qr-timer {
+  font-size: 13px;
+  color: var(--apple-gray-2);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.qr-upload-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(52, 199, 89, 0.1);
+  color: #248a3d;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.qr-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.qr-test-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--apple-blue);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 980px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.qr-test-btn:hover {
+  background: var(--apple-blue-hover);
+}
+
+.qr-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--apple-gray-4);
+  color: var(--apple-gray-1);
+  padding: 8px 16px;
+  border-radius: 980px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qr-refresh-btn:hover {
+  border-color: var(--apple-blue);
+  color: var(--apple-blue);
+}

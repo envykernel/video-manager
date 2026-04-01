@@ -1,0 +1,20 @@
+# .NET
+backend-api/bin/
+backend-api/obj/
+
+# Node / React
+frontend-video-platform/node_modules/
+frontend-video-platform/dist/
+
+# Secrets
+appsettings.Development.json
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db

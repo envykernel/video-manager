@@ -11,6 +11,7 @@ public class MongoDbService
     private readonly IMongoCollection<UploadToken> _uploadTokens;
     private readonly IMongoCollection<User> _users;
     private readonly IMongoCollection<UploadLimits> _uploadLimits;
+    private readonly IMongoCollection<ChatMessage> _chatMessages;
 
     public MongoDbService(IConfiguration configuration)
     {
@@ -25,6 +26,7 @@ public class MongoDbService
         _uploadTokens = database.GetCollection<UploadToken>("upload_tokens");
         _users = database.GetCollection<User>("users");
         _uploadLimits = database.GetCollection<UploadLimits>("upload_limits");
+        _chatMessages = database.GetCollection<ChatMessage>("chat_messages");
 
         SeedUsersAsync().GetAwaiter().GetResult();
     }
@@ -111,6 +113,29 @@ public class MongoDbService
         await _videos.Find(v => v.UploadToken == tokenValue)
             .SortByDescending(v => v.CreatedAt)
             .ToListAsync();
+
+    // Chat messages
+    public async Task<ChatMessage> CreateChatMessageAsync(ChatMessage message)
+    {
+        await _chatMessages.InsertOneAsync(message);
+        return message;
+    }
+
+    public async Task<List<ChatMessage>> GetChatMessagesByUserAsync(string userId) =>
+        await _chatMessages.Find(m => m.UserId == userId)
+            .SortBy(m => m.CreatedAt)
+            .ToListAsync();
+
+    public async Task DeleteChatMessageAsync(string id) =>
+        await _chatMessages.DeleteOneAsync(m => m.Id == id);
+
+    public async Task RemoveVideoFromChatMessagesAsync(string videoId)
+    {
+        var update = Builders<ChatMessage>.Update.Pull(m => m.VideoIds, videoId);
+        await _chatMessages.UpdateManyAsync(m => m.VideoIds.Contains(videoId), update);
+        // Clean up empty messages (no text and no videos)
+        await _chatMessages.DeleteManyAsync(m => m.Text == null && m.VideoIds.Count == 0);
+    }
 
     // Upload limits
     public async Task<UploadLimits> GetUploadLimitsAsync()

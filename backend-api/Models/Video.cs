@@ -91,6 +91,8 @@ public class UploadLimits
     public int MaxDurationSeconds { get; set; } = 60; // 1 minute
 
     public int QrExpirationMinutes { get; set; } = 30;
+
+    public int MaxVideosPerSession { get; set; } = 2;
 }
 
 public class UploadLimitsRequest
@@ -98,6 +100,7 @@ public class UploadLimitsRequest
     public long MaxFileSizeBytes { get; set; }
     public int MaxDurationSeconds { get; set; }
     public int QrExpirationMinutes { get; set; }
+    public int MaxVideosPerSession { get; set; }
 }
 
 public class UploadLimitsResponse
@@ -105,6 +108,37 @@ public class UploadLimitsResponse
     public long MaxFileSizeBytes { get; set; }
     public int MaxDurationSeconds { get; set; }
     public int QrExpirationMinutes { get; set; }
+    public int MaxVideosPerSession { get; set; }
+}
+
+// Chat messages (used only by chat upload page)
+public class ChatMessage
+{
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? Id { get; set; }
+
+    public string UserId { get; set; } = string.Empty;
+
+    public string? Text { get; set; }
+
+    public List<string> VideoIds { get; set; } = new();
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class CreateChatMessageRequest
+{
+    public string? Text { get; set; }
+    public List<string> VideoIds { get; set; } = new();
+}
+
+public class ChatMessageResponse
+{
+    public string Id { get; set; } = string.Empty;
+    public string? Text { get; set; }
+    public List<VideoResponse> Videos { get; set; } = new();
+    public DateTime CreatedAt { get; set; }
 }
 
 public class LoginRequest

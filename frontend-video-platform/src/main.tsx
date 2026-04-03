@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import App from './App'
+import ChatUploadPage from './ChatUploadPage'
 import MobileUploadPage from './MobileUploadPage'
 import LoginPage from './LoginPage'
 
@@ -56,6 +57,16 @@ function Root() {
           element={
             token && user ? (
               <App token={token} user={user} onLogout={handleLogout} />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
+          }
+        />
+        <Route
+          path="/chat"
+          element={
+            token && user ? (
+              <ChatUploadPage token={token} user={user} onLogout={handleLogout} />
             ) : (
               <LoginPage onLogin={handleLogin} />
             )

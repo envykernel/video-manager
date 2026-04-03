@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Upload, Play, X, Film, Clock, HardDrive, CloudUpload, Video,
   Trash2, RefreshCw, AlertCircle, Loader2, LogOut, User, Settings,
-  ShieldAlert, CheckCircle2,
+  ShieldAlert, CheckCircle2, MessageSquare,
 } from 'lucide-react'
 import MuxPlayer from '@mux/mux-player-react'
 import QRUploadSection from './QRUploadSection'
@@ -92,6 +93,7 @@ interface UploadLimits {
   maxFileSizeBytes: number
   maxDurationSeconds: number
   qrExpirationMinutes: number
+  maxVideosPerSession: number
 }
 
 interface Toast {
@@ -107,21 +109,25 @@ interface FileRejection {
 }
 
 function App({ token, user, onLogout }: AppProps) {
+  const navigate = useNavigate()
   const [videos, setVideos] = useState<VideoItem[]>([])
   const [upload, setUpload] = useState<UploadState | null>(null)
   const [dragging, setDragging] = useState(false)
   const [playingVideo, setPlayingVideo] = useState<VideoItem | null>(null)
   const [loading, setLoading] = useState(true)
-  const [limits, setLimits] = useState<UploadLimits>({ maxFileSizeBytes: 5 * 1024 * 1024, maxDurationSeconds: 60, qrExpirationMinutes: 30 })
+  const [limits, setLimits] = useState<UploadLimits>({ maxFileSizeBytes: 5 * 1024 * 1024, maxDurationSeconds: 60, qrExpirationMinutes: 30, maxVideosPerSession: 2 })
   const [showSettings, setShowSettings] = useState(false)
   const [editSizeMB, setEditSizeMB] = useState('5')
   const [editDurationSec, setEditDurationSec] = useState('60')
   const [editQrExpMin, setEditQrExpMin] = useState('30')
+  const [editMaxVideos, setEditMaxVideos] = useState('2')
   const [savingSettings, setSavingSettings] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [rejection, setRejection] = useState<FileRejection | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const videosRef = useRef(videos)
+  videosRef.current = videos
 
   const authHeaders = {
     Authorization: `Bearer ${token}`,
@@ -157,6 +163,7 @@ function App({ token, user, onLogout }: AppProps) {
         setEditSizeMB(String(data.maxFileSizeBytes / (1024 * 1024)))
         setEditDurationSec(String(data.maxDurationSeconds))
         setEditQrExpMin(String(data.qrExpirationMinutes))
+        setEditMaxVideos(String(data.maxVideosPerSession))
       }
     } catch (err) {
       console.error('Failed to fetch upload limits:', err)
@@ -167,7 +174,8 @@ function App({ token, user, onLogout }: AppProps) {
     const sizeMB = parseFloat(editSizeMB)
     const durationSec = parseInt(editDurationSec)
     const qrExpMin = parseInt(editQrExpMin)
-    if (isNaN(sizeMB) || sizeMB <= 0 || isNaN(durationSec) || durationSec <= 0 || isNaN(qrExpMin) || qrExpMin <= 0) return
+    const maxVids = parseInt(editMaxVideos)
+    if (isNaN(sizeMB) || sizeMB <= 0 || isNaN(durationSec) || durationSec <= 0 || isNaN(qrExpMin) || qrExpMin <= 0 || isNaN(maxVids) || maxVids <= 0) return
 
     setSavingSettings(true)
     try {
@@ -178,6 +186,7 @@ function App({ token, user, onLogout }: AppProps) {
           maxFileSizeBytes: Math.round(sizeMB * 1024 * 1024),
           maxDurationSeconds: durationSec,
           qrExpirationMinutes: qrExpMin,
+          maxVideosPerSession: maxVids,
         }),
       })
       if (res.ok) {
@@ -186,7 +195,8 @@ function App({ token, user, onLogout }: AppProps) {
         setEditSizeMB(String(data.maxFileSizeBytes / (1024 * 1024)))
         setEditDurationSec(String(data.maxDurationSeconds))
         setEditQrExpMin(String(data.qrExpirationMinutes))
-        addToast('success', `Limits updated — ${data.maxFileSizeBytes / (1024 * 1024)} MB, ${data.maxDurationSeconds}s, QR ${data.qrExpirationMinutes}min`)
+        setEditMaxVideos(String(data.maxVideosPerSession))
+        addToast('success', `Limits updated — ${data.maxFileSizeBytes / (1024 * 1024)} MB, ${data.maxDurationSeconds}s, QR ${data.qrExpirationMinutes}min, ${data.maxVideosPerSession} videos`)
       } else {
         addToast('error', 'Failed to save settings')
       }
@@ -196,7 +206,7 @@ function App({ token, user, onLogout }: AppProps) {
     } finally {
       setSavingSettings(false)
     }
-  }, [editSizeMB, editDurationSec, editQrExpMin, token])
+  }, [editSizeMB, editDurationSec, editQrExpMin, editMaxVideos, token])
 
   useEffect(() => {
     fetchVideos()
@@ -204,16 +214,19 @@ function App({ token, user, onLogout }: AppProps) {
   }, [fetchVideos, fetchLimits])
 
   useEffect(() => {
-    const hasProcessing = videos.some(
-      v => v.status === 'processing' || v.status === 'waiting_for_upload'
-    )
-    if (hasProcessing) {
-      pollRef.current = setInterval(fetchVideos, 5000)
-    }
+    if (pollRef.current) clearInterval(pollRef.current)
+
+    pollRef.current = setInterval(() => {
+      const hasProcessing = videosRef.current.some(
+        v => v.status === 'processing' || v.status === 'waiting_for_upload'
+      )
+      if (hasProcessing) fetchVideos()
+    }, 4000)
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [videos, fetchVideos])
+  }, [fetchVideos])
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('video/')) return
@@ -351,6 +364,16 @@ function App({ token, user, onLogout }: AppProps) {
             <Video size={24} />
             <span>Video Platform</span>
           </div>
+          <div className="nav-tabs">
+            <button className="nav-tab active">
+              <Upload size={16} />
+              <span>Upload</span>
+            </button>
+            <button className="nav-tab" onClick={() => navigate('/chat')}>
+              <MessageSquare size={16} />
+              <span>Chat Upload</span>
+            </button>
+          </div>
           <div className="nav-right">
             <div className="nav-user">
               <User size={16} />
@@ -426,6 +449,20 @@ function App({ token, user, onLogout }: AppProps) {
                     onChange={e => setEditQrExpMin(e.target.value)}
                   />
                   <span className="settings-input-unit">min</span>
+                </div>
+              </div>
+              <div className="settings-bar-divider" />
+              <div className="settings-bar-group">
+                <span className="settings-bar-hint">Videos</span>
+                <div className="settings-input-wrap">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={editMaxVideos}
+                    onChange={e => setEditMaxVideos(e.target.value)}
+                  />
+                  <span className="settings-input-unit">max</span>
                 </div>
               </div>
               <button

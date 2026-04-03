@@ -90,6 +90,7 @@ public class VideosController : ControllerBase
         }
 
         await _db.DeleteAsync(id);
+        await _db.RemoveVideoFromChatMessagesAsync(id);
         return NoContent();
     }
 }

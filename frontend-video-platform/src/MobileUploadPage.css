@@ -1,4 +1,4 @@
-/* Mobile Upload Page — native mobile layout */
+/* Mobile Upload Page */
 .m-page {
   min-height: 100vh;
   min-height: 100dvh;
@@ -44,7 +44,7 @@
   margin-bottom: 12px;
 }
 
-/* Navigation — sticky top */
+/* Navigation */
 .m-nav {
   display: flex;
   align-items: center;
@@ -88,18 +88,18 @@
   color: var(--apple-blue);
 }
 
-/* Body — fills remaining space, centers content vertically */
+/* Body */
 .m-body {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 24px 20px;
 }
 
 .m-content {
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
   text-align: center;
 }
 
@@ -127,159 +127,257 @@
 .m-hint {
   font-size: 13px;
   color: var(--apple-gray-2);
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
-/* Success banner */
-.m-success {
-  display: inline-flex;
+/* Session progress */
+.m-session {
+  margin-bottom: 20px;
+}
+
+.m-session-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  background: rgba(52, 199, 89, 0.08);
-  color: #248a3d;
-  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.m-session-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--apple-gray-1);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.m-session-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--apple-gray-2);
+}
+
+.m-session-bar-bg {
+  height: 6px;
+  background: var(--apple-gray-5);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.m-session-bar {
+  height: 100%;
+  background: var(--apple-blue);
+  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.m-session-bar-low {
+  background: var(--apple-red);
+}
+
+/* Slot grid */
+.m-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* Slot card base */
+.m-slot {
+  border-radius: 14px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  height: 130px;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Slot icon */
+.m-slot-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Empty slot — add button */
+.m-slot-empty {
+  background: var(--apple-white);
+  border: 2px dashed var(--apple-gray-4);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.m-slot-empty:active {
+  border-color: var(--apple-blue);
+  background: rgba(0, 122, 255, 0.02);
+}
+
+.m-slot-empty:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.m-slot-icon-add {
+  background: rgba(0, 122, 255, 0.08);
+  color: var(--apple-blue);
+}
+
+.m-slot-add-label {
   font-size: 13px;
   font-weight: 600;
-  margin-bottom: 16px;
+  color: var(--apple-blue);
 }
 
-/* Upload button */
-.m-upload-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 36px;
-  background: var(--apple-blue);
-  color: white;
-  border: none;
-  border-radius: 980px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
+.m-slot-add-hint {
+  font-size: 11px;
+  color: var(--apple-gray-3);
 }
 
-.m-upload-btn:active {
-  background: var(--apple-blue-hover);
-}
-
-/* Upload card */
-.m-card {
+/* Done slot */
+.m-slot-done {
   background: var(--apple-white);
   border: 1px solid var(--apple-gray-5);
-  border-radius: 14px;
-  padding: 14px;
-  text-align: left;
 }
 
-.m-card-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+.m-slot-icon-done {
+  background: rgba(52, 199, 89, 0.1);
+  color: var(--apple-green);
 }
 
-.m-card-file-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--apple-gray-6);
-  color: var(--apple-blue);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.m-card-info {
-  min-width: 0;
-  flex: 1;
-}
-
-.m-card-name {
-  font-size: 14px;
+.m-slot-name {
+  font-size: 11px;
   font-weight: 600;
   color: var(--apple-black);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: 100%;
+  line-height: 1.3;
 }
 
-.m-card-size {
-  font-size: 11px;
+.m-slot-size {
+  font-size: 10px;
   color: var(--apple-gray-2);
-  margin-top: 1px;
 }
 
-/* Progress */
-.m-progress-bg {
-  height: 5px;
+/* Uploading slot */
+.m-slot-uploading {
+  background: var(--apple-white);
+  border: 1px solid rgba(0, 122, 255, 0.3);
+}
+
+.m-slot-icon-uploading {
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--apple-blue);
+}
+
+.m-slot-icon-uploading .spinner {
+  color: var(--apple-blue);
+}
+
+.m-slot-progress {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.m-slot-bar-bg {
+  flex: 1;
+  height: 4px;
   background: var(--apple-gray-5);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
-.m-progress-bar {
+.m-slot-bar {
   height: 100%;
   background: var(--apple-blue);
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.3s ease;
 }
 
-.m-progress-bar.complete {
-  background: var(--apple-green);
-}
-
-.m-progress-bar.error {
-  background: var(--apple-red);
-}
-
-.m-progress-label {
-  margin-top: 5px;
+.m-slot-percent {
   font-size: 11px;
-  color: var(--apple-gray-1);
+  font-weight: 600;
+  color: var(--apple-blue);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: right;
 }
 
-/* Complete state */
-.m-complete {
-  text-align: center;
-  padding-top: 14px;
+.m-slot-error {
+  font-size: 10px;
+  color: var(--apple-red);
+  line-height: 1.3;
 }
 
-.m-complete-icon {
+.m-slot-retry {
+  background: none;
+  border: none;
+  color: var(--apple-blue);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Done screen */
+.m-done-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(52, 199, 89, 0.1);
   color: var(--apple-green);
-  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
 }
 
-.m-complete p {
+.m-center-text-hint {
+  margin-top: 8px;
+  color: var(--apple-gray-2);
   font-size: 13px;
-  color: var(--apple-gray-1);
-  margin-bottom: 10px;
 }
 
-/* Secondary button */
-.m-btn-secondary {
+.m-done-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 20px;
-  background: var(--apple-gray-6);
-  color: var(--apple-blue);
-  border: none;
-  border-radius: 980px;
-  font-size: 14px;
+  margin-top: 20px;
+  padding: 8px 16px;
+  background: rgba(52, 199, 89, 0.08);
+  color: #248a3d;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  margin-top: 6px;
 }
 
-.m-btn-secondary:active {
-  background: var(--apple-gray-5);
+/* Max reached */
+.m-max-reached {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(52, 199, 89, 0.08);
+  color: #248a3d;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-/* Footer — session timer pinned at bottom */
+/* Footer */
 .m-footer {
   display: flex;
   align-items: center;

@@ -1,14 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { Upload, CheckCircle, AlertCircle, Film, Loader2, Clock, User } from 'lucide-react'
+import { Upload, CheckCircle, AlertCircle, Film, Loader2, Clock, User, Plus } from 'lucide-react'
 import './MobileUploadPage.css'
 
 const API_BASE = '/api'
 
-interface UploadState {
+interface UploadedVideo {
+  id: string
+  name: string
+  size: number
+}
+
+interface ActiveUpload {
+  slotIndex: number
   file: File
   progress: number
-  status: 'uploading' | 'processing' | 'complete' | 'error'
+  status: 'uploading' | 'complete' | 'error'
   error?: string
 }
 
@@ -37,12 +44,15 @@ function getVideoDuration(file: File): Promise<{ formatted: string; totalSeconds
 export default function MobileUploadPage() {
   const { token } = useParams<{ token: string }>()
   const [valid, setValid] = useState<boolean | null>(null)
-  const [upload, setUpload] = useState<UploadState | null>(null)
-  const [uploadCount, setUploadCount] = useState(0)
+  const [activeUpload, setActiveUpload] = useState<ActiveUpload | null>(null)
+  const [uploadedVideos, setUploadedVideos] = useState<UploadedVideo[]>([])
+  const [maxVideos, setMaxVideos] = useState(2)
   const [limits, setLimits] = useState({ maxFileSizeBytes: 5 * 1024 * 1024, maxDurationSeconds: 60 })
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [timeLeft, setTimeLeft] = useState('')
+  const [sessionPercent, setSessionPercent] = useState(100)
+  const [totalSessionMs, setTotalSessionMs] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -61,9 +71,26 @@ export default function MobileUploadPage() {
 
     fetch(`${API_BASE}/settings/upload-limits`)
       .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data) setLimits(data) })
+      .then(data => {
+        if (data) {
+          setLimits({ maxFileSizeBytes: data.maxFileSizeBytes, maxDurationSeconds: data.maxDurationSeconds })
+          if (data.maxVideosPerSession) setMaxVideos(data.maxVideosPerSession)
+          if (data.qrExpirationMinutes) setTotalSessionMs(data.qrExpirationMinutes * 60 * 1000)
+        }
+      })
       .catch(() => {})
   }, [token])
+
+  // Load already uploaded videos for this token
+  useEffect(() => {
+    if (!valid) return
+    fetch(`${API_BASE}/mobile-upload/token/${token}/videos`)
+      .then(res => res.ok ? res.json() : [])
+      .then((data: Array<{ id: string; name: string; size: number }>) => {
+        setUploadedVideos(data.map(v => ({ id: v.id, name: v.name, size: v.size })))
+      })
+      .catch(() => {})
+  }, [token, valid])
 
   useEffect(() => {
     if (!expiresAt) return
@@ -71,33 +98,37 @@ export default function MobileUploadPage() {
       const remaining = new Date(expiresAt).getTime() - Date.now()
       if (remaining <= 0) {
         setTimeLeft('Expired')
+        setSessionPercent(0)
         setValid(false)
       } else {
         const mins = Math.floor(remaining / 60000)
         const secs = Math.floor((remaining % 60000) / 1000)
         setTimeLeft(`${mins}:${secs.toString().padStart(2, '0')}`)
+        if (totalSessionMs > 0) {
+          setSessionPercent(Math.max(0, Math.min(100, (remaining / totalSessionMs) * 100)))
+        }
       }
     }
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [expiresAt])
+  }, [expiresAt, totalSessionMs])
 
-  const processFile = useCallback(async (file: File) => {
+  const processFile = useCallback(async (file: File, slotIndex: number) => {
     if (!file.type.startsWith('video/')) return
 
     if (file.size > limits.maxFileSizeBytes) {
-      setUpload({ file, progress: 0, status: 'error', error: `File size exceeds the ${limits.maxFileSizeBytes / (1024 * 1024)} MB limit.` })
+      setActiveUpload({ slotIndex, file, progress: 0, status: 'error', error: `Exceeds ${limits.maxFileSizeBytes / (1024 * 1024)} MB limit` })
       return
     }
 
-    setUpload({ file, progress: 0, status: 'uploading' })
+    setActiveUpload({ slotIndex, file, progress: 0, status: 'uploading' })
 
     try {
       const { formatted: duration, totalSeconds } = await getVideoDuration(file)
 
       if (totalSeconds > limits.maxDurationSeconds) {
-        setUpload(prev => prev ? { ...prev, status: 'error', error: `Video duration exceeds the ${limits.maxDurationSeconds} second limit.` } : null)
+        setActiveUpload(prev => prev ? { ...prev, status: 'error', error: `Exceeds ${limits.maxDurationSeconds}s limit` } : null)
         return
       }
 
@@ -108,50 +139,57 @@ export default function MobileUploadPage() {
       })
 
       if (!createRes.ok) {
-        let msg = 'Upload rejected by server'
-        try {
-          const errJson = await createRes.json()
-          if (errJson.message) msg = errJson.message
-        } catch { /* non-JSON response */ }
+        let msg = 'Upload rejected'
+        try { const errJson = await createRes.json(); if (errJson.message) msg = errJson.message } catch { /* */ }
         throw new Error(msg)
       }
 
-      const { uploadUrl } = await createRes.json()
+      const { videoId, uploadUrl } = await createRes.json()
 
       const xhr = new XMLHttpRequest()
       xhr.open('PUT', uploadUrl)
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
-          setUpload(prev => prev ? { ...prev, progress: (e.loaded / e.total) * 100 } : null)
+          setActiveUpload(prev => prev ? { ...prev, progress: (e.loaded / e.total) * 100 } : null)
         }
       }
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          setUpload(prev => prev ? { ...prev, progress: 100, status: 'complete' } : null)
-          setUploadCount(c => c + 1)
+          setActiveUpload(prev => prev ? { ...prev, progress: 100, status: 'complete' } : null)
+          setUploadedVideos(prev => [...prev, { id: videoId, name: file.name, size: file.size }])
+          setTimeout(() => setActiveUpload(null), 1200)
         } else {
-          setUpload(prev => prev ? { ...prev, status: 'error', error: `Upload failed (${xhr.status})` } : null)
+          setActiveUpload(prev => prev ? { ...prev, status: 'error', error: `Failed (${xhr.status})` } : null)
         }
       }
 
       xhr.onerror = () => {
-        setUpload(prev => prev ? { ...prev, status: 'error', error: 'Network error' } : null)
+        setActiveUpload(prev => prev ? { ...prev, status: 'error', error: 'Network error' } : null)
       }
 
       xhr.send(file)
     } catch (err) {
-      setUpload(prev => prev ? {
+      setActiveUpload(prev => prev ? {
         ...prev, status: 'error',
         error: err instanceof Error ? err.message : 'Upload failed',
       } : null)
     }
   }, [token, limits])
 
+  const handleSlotClick = useCallback((slotIndex: number) => {
+    if (activeUpload) return
+    // Store which slot was clicked so processFile knows
+    fileInputRef.current?.click()
+    // Save slot index for when file is selected
+    fileInputRef.current!.dataset.slot = String(slotIndex)
+  }, [activeUpload])
+
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) processFile(file)
+    const slotIndex = parseInt(e.target.dataset.slot || '0')
+    if (file) processFile(file, slotIndex)
     e.target.value = ''
   }, [processFile])
 
@@ -180,6 +218,118 @@ export default function MobileUploadPage() {
     )
   }
 
+  // All done — show confirmation screen
+  if (uploadedVideos.length >= maxVideos && !activeUpload) {
+    return (
+      <div className="m-page">
+        <div className="m-nav">
+          <div className="m-nav-left">
+            <Film size={16} />
+            <span>Video Platform</span>
+          </div>
+          <div className="m-nav-user">
+            <User size={12} />
+            <span>{displayName}</span>
+          </div>
+        </div>
+
+        <div className="m-center">
+          <div className="m-done-icon">
+            <CheckCircle size={36} />
+          </div>
+          <h2 className="m-center-title">All videos uploaded!</h2>
+          <p className="m-center-text">
+            {uploadedVideos.length} video{uploadedVideos.length > 1 ? 's' : ''} sent to {displayName}'s library.
+          </p>
+          <p className="m-center-text m-center-text-hint">
+            You can go back to your computer to review and send them in the chat.
+          </p>
+          <div className="m-done-badge">
+            <Film size={13} />
+            {uploadedVideos.length} / {maxVideos} videos
+          </div>
+        </div>
+
+        {timeLeft && timeLeft !== 'Expired' && (
+          <div className="m-footer">
+            <Clock size={12} />
+            <span>Session expires in {timeLeft}</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Build slot cards
+  const slots = []
+  for (let i = 0; i < maxVideos; i++) {
+    const uploaded = uploadedVideos[i]
+    const isActiveSlot = activeUpload && activeUpload.slotIndex === i
+    const isUploading = isActiveSlot && activeUpload
+
+    if (uploaded) {
+      // Filled slot — completed video
+      slots.push(
+        <div key={`slot-${i}`} className="m-slot m-slot-done">
+          <div className="m-slot-icon m-slot-icon-done">
+            <CheckCircle size={18} />
+          </div>
+          <div className="m-slot-name">{uploaded.name}</div>
+          <div className="m-slot-size">{formatFileSize(uploaded.size)}</div>
+        </div>
+      )
+    } else if (isUploading) {
+      // Active upload in this slot
+      slots.push(
+        <div key={`slot-${i}`} className="m-slot m-slot-uploading">
+          <div className="m-slot-icon m-slot-icon-uploading">
+            {activeUpload!.status === 'error' ? (
+              <AlertCircle size={18} />
+            ) : activeUpload!.status === 'complete' ? (
+              <CheckCircle size={18} />
+            ) : (
+              <Loader2 size={18} className="spinner" />
+            )}
+          </div>
+          <div className="m-slot-name">{activeUpload!.file.name}</div>
+          {activeUpload!.status === 'uploading' && (
+            <div className="m-slot-progress">
+              <div className="m-slot-bar-bg">
+                <div className="m-slot-bar" style={{ width: `${activeUpload!.progress}%` }} />
+              </div>
+              <span className="m-slot-percent">{Math.round(activeUpload!.progress)}%</span>
+            </div>
+          )}
+          {activeUpload!.status === 'complete' && (
+            <div className="m-slot-size">{formatFileSize(activeUpload!.file.size)}</div>
+          )}
+          {activeUpload!.status === 'error' && (
+            <>
+              <div className="m-slot-error">{activeUpload!.error}</div>
+              <button className="m-slot-retry" onClick={() => setActiveUpload(null)}>Retry</button>
+            </>
+          )}
+        </div>
+      )
+    } else {
+      // Empty slot — add video button
+      slots.push(
+        <button
+          key={`slot-${i}`}
+          className="m-slot m-slot-empty"
+          onClick={() => handleSlotClick(i)}
+          disabled={!!activeUpload}
+        >
+          <div className="m-slot-icon m-slot-icon-add">
+            <Plus size={22} />
+          </div>
+          <div className="m-slot-add-label">Add Video</div>
+          <div className="m-slot-add-hint">Slot {i + 1}</div>
+        </button>
+      )
+    }
+  }
+
   return (
     <div className="m-page">
       <div className="m-nav">
@@ -198,78 +348,47 @@ export default function MobileUploadPage() {
           <div className="m-hero-icon">
             <Upload size={20} />
           </div>
-          <h1 className="m-title">Upload Video</h1>
+          <h1 className="m-title">Upload Videos</h1>
           <p className="m-hint">
-            Max {limits.maxFileSizeBytes / (1024 * 1024)} MB, {limits.maxDurationSeconds}s
+            {maxVideos} video{maxVideos > 1 ? 's' : ''} max — {limits.maxFileSizeBytes / (1024 * 1024)} MB, {limits.maxDurationSeconds}s each
           </p>
 
-          {uploadCount > 0 && !upload && (
-            <div className="m-success">
-              <CheckCircle size={13} />
-              {uploadCount} video{uploadCount > 1 ? 's' : ''} uploaded
+          {/* Session timer progress */}
+          <div className="m-session">
+            <div className="m-session-header">
+              <span className="m-session-label">
+                <Clock size={11} />
+                Session — {timeLeft || '—'}
+              </span>
+              <span className="m-session-count">{uploadedVideos.length} / {maxVideos} videos</span>
             </div>
-          )}
-
-          {!upload && (
-            <>
-              <button className="m-upload-btn" onClick={() => fileInputRef.current?.click()}>
-                <Upload size={16} />
-                Choose Video
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="video/*"
-                onChange={handleFileSelect}
-                hidden
+            <div className="m-session-bar-bg">
+              <div
+                className={`m-session-bar${sessionPercent < 20 ? ' m-session-bar-low' : ''}`}
+                style={{ width: `${sessionPercent}%` }}
               />
-            </>
-          )}
+            </div>
+          </div>
 
-          {upload && (
-            <div className="m-card">
-              <div className="m-card-top">
-                <div className="m-card-file-icon">
-                  <Film size={14} />
-                </div>
-                <div className="m-card-info">
-                  <div className="m-card-name">{upload.file.name}</div>
-                  <div className="m-card-size">{formatFileSize(upload.file.size)}</div>
-                </div>
-              </div>
+          {/* Slot grid */}
+          <div className="m-grid">
+            {slots}
+          </div>
 
-              <div className="m-progress-bg">
-                <div
-                  className={`m-progress-bar ${upload.status === 'complete' ? 'complete' : ''} ${upload.status === 'error' ? 'error' : ''}`}
-                  style={{ width: `${upload.progress}%` }}
-                />
-              </div>
-
-              <div className="m-progress-label">
-                {upload.status === 'uploading' && `${Math.round(upload.progress)}%`}
-                {upload.status === 'complete' && 'Done'}
-                {upload.status === 'error' && upload.error}
-              </div>
-
-              {upload.status === 'complete' && (
-                <div className="m-complete">
-                  <CheckCircle size={32} className="m-complete-icon" />
-                  <p>Sent to {displayName}'s library</p>
-                  <button className="m-btn-secondary" onClick={() => setUpload(null)}>
-                    Upload Another
-                  </button>
-                </div>
-              )}
-
-              {upload.status === 'error' && (
-                <div style={{ textAlign: 'center' }}>
-                  <button className="m-btn-secondary" onClick={() => setUpload(null)}>
-                    Try Again
-                  </button>
-                </div>
-              )}
+          {uploadedVideos.length >= maxVideos && (
+            <div className="m-max-reached">
+              <CheckCircle size={14} />
+              All videos uploaded
             </div>
           )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            onChange={handleFileSelect}
+            hidden
+          />
         </div>
       </div>
 

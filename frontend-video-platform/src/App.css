@@ -37,6 +37,40 @@
   color: var(--apple-blue);
 }
 
+.nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--apple-gray-6);
+  padding: 3px;
+  border-radius: 10px;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--apple-gray-1);
+  transition: all 0.2s;
+}
+
+.nav-tab:hover {
+  color: var(--apple-black);
+}
+
+.nav-tab.active {
+  background: var(--apple-white);
+  color: var(--apple-blue);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+}
+
 .nav-right {
   display: flex;
   align-items: center;
@@ -848,6 +882,14 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .nav-tab span {
+    display: none;
+  }
+
+  .nav-tab {
+    padding: 6px 10px;
+  }
+
   .main-content {
     padding: 24px 16px;
   }

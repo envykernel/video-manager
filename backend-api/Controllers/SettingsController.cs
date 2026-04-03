@@ -25,7 +25,8 @@ public class SettingsController : ControllerBase
         {
             MaxFileSizeBytes = limits.MaxFileSizeBytes,
             MaxDurationSeconds = limits.MaxDurationSeconds,
-            QrExpirationMinutes = limits.QrExpirationMinutes
+            QrExpirationMinutes = limits.QrExpirationMinutes,
+            MaxVideosPerSession = limits.MaxVideosPerSession
         });
     }
 
@@ -43,11 +44,15 @@ public class SettingsController : ControllerBase
         if (request.QrExpirationMinutes <= 0)
             return BadRequest(new { message = "QR expiration must be greater than 0." });
 
+        if (request.MaxVideosPerSession <= 0)
+            return BadRequest(new { message = "Max videos per session must be greater than 0." });
+
         var limits = new UploadLimits
         {
             MaxFileSizeBytes = request.MaxFileSizeBytes,
             MaxDurationSeconds = request.MaxDurationSeconds,
-            QrExpirationMinutes = request.QrExpirationMinutes
+            QrExpirationMinutes = request.QrExpirationMinutes,
+            MaxVideosPerSession = request.MaxVideosPerSession
         };
 
         await _db.UpdateUploadLimitsAsync(limits);
@@ -56,7 +61,8 @@ public class SettingsController : ControllerBase
         {
             MaxFileSizeBytes = limits.MaxFileSizeBytes,
             MaxDurationSeconds = limits.MaxDurationSeconds,
-            QrExpirationMinutes = limits.QrExpirationMinutes
+            QrExpirationMinutes = limits.QrExpirationMinutes,
+            MaxVideosPerSession = limits.MaxVideosPerSession
         });
     }
 }

@@ -91,23 +91,23 @@ export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: (
     <div className="qr-section">
       <div className="qr-header">
         <Smartphone size={20} />
-        <h3>Upload from Phone</h3>
+        <h3>Envoyer depuis le téléphone</h3>
       </div>
 
       {loading ? (
         <div className="qr-generate">
           <Loader2 size={24} className="spinner" />
-          <p>Generating QR code...</p>
+          <p>Génération du QR code...</p>
         </div>
       ) : expired ? (
         <div className="qr-expired">
           <div className="qr-expired-icon">
             <Clock size={28} />
           </div>
-          <p className="qr-expired-text">QR code session expired</p>
+          <p className="qr-expired-text">Session QR expirée</p>
           <button className="qr-refresh-btn" onClick={generateToken}>
             <RefreshCw size={14} />
-            Generate New QR Code
+            Nouveau QR Code
           </button>
         </div>
       ) : tokenData ? (
@@ -115,13 +115,13 @@ export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: (
           <div className="qr-code-wrapper">
             <QRCodeSVG value={tokenData.mobileUrl} size={150} level="M" />
           </div>
-          <p className="qr-instruction">Scan with your phone camera</p>
-          <div className="qr-timer">Expires in {timeLeft}</div>
+          <p className="qr-instruction">Scannez avec l'appareil photo de votre téléphone</p>
+          <div className="qr-timer">Expire dans {timeLeft}</div>
 
           {uploadCount > 0 && (
             <div className="qr-upload-count">
               <CheckCircle size={14} />
-              {uploadCount} video{uploadCount > 1 ? 's' : ''} received
+              {uploadCount} vidéo{uploadCount > 1 ? 's' : ''} reçue{uploadCount > 1 ? 's' : ''}
             </div>
           )}
 
@@ -133,11 +133,11 @@ export default function QRUploadSection({ onNewUpload, token }: { onNewUpload: (
               rel="noopener noreferrer"
             >
               <ExternalLink size={14} />
-              Test in Browser
+              Tester dans le navigateur
             </a>
             <button className="qr-refresh-btn" onClick={generateToken}>
               <RefreshCw size={14} />
-              New QR Code
+              Nouveau QR Code
             </button>
           </div>
         </div>

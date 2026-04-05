@@ -5,6 +5,8 @@ import './index.css'
 import App from './App'
 import ChatUploadPage from './ChatUploadPage'
 import MobileUploadPage from './MobileUploadPage'
+import TranscriptionPage from './TranscriptionPage'
+import ClarityPage from './ClarityPage'
 import LoginPage from './LoginPage'
 
 interface UserInfo {
@@ -67,6 +69,26 @@ function Root() {
           element={
             token && user ? (
               <ChatUploadPage token={token} user={user} onLogout={handleLogout} />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
+          }
+        />
+        <Route
+          path="/transcription"
+          element={
+            token && user ? (
+              <TranscriptionPage token={token} user={user} onLogout={handleLogout} />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
+          }
+        />
+        <Route
+          path="/clarity"
+          element={
+            token && user ? (
+              <ClarityPage token={token} user={user} onLogout={handleLogout} />
             ) : (
               <LoginPage onLogin={handleLogin} />
             )

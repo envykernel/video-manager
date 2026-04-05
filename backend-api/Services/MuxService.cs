@@ -19,7 +19,7 @@ public class MuxService
         var tokenSecret = configuration["Mux:TokenSecret"]
             ?? throw new InvalidOperationException("Mux:TokenSecret is not configured");
 
-        var config = new Configuration
+        var config = new Mux.Csharp.Sdk.Client.Configuration
         {
             BasePath = "https://api.mux.com",
             Username = tokenId,

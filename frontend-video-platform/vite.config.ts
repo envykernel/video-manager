@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5129',
+        target: 'https://video-backend.lemonhill-e469c5cf.eastus.azurecontainerapps.io',
         changeOrigin: true,
       },
     },

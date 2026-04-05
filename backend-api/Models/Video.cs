@@ -43,6 +43,21 @@ public class Video
     public string Status { get; set; } = "waiting_for_upload";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // Transcription fields
+    public string? TranscriptionStatus { get; set; }
+    public string? RawTranscription { get; set; }
+    public string? StructuredTranscription { get; set; }
+    public string? DetectedLanguage { get; set; }
+    public string? TranslatedTo { get; set; }
+    public List<TranscriptionSegment>? Segments { get; set; }
+}
+
+public class TranscriptionSegment
+{
+    public double StartTime { get; set; }
+    public double EndTime { get; set; }
+    public string Text { get; set; } = string.Empty;
 }
 
 public class CreateUploadRequest
@@ -67,6 +82,12 @@ public class VideoResponse
     public string? PlaybackId { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public string? TranscriptionStatus { get; set; }
+    public string? RawTranscription { get; set; }
+    public string? StructuredTranscription { get; set; }
+    public string? DetectedLanguage { get; set; }
+    public string? TranslatedTo { get; set; }
+    public List<TranscriptionSegment>? Segments { get; set; }
 
     public static VideoResponse FromVideo(Video video) => new()
     {
@@ -76,7 +97,13 @@ public class VideoResponse
         Duration = video.Duration,
         PlaybackId = video.MuxPlaybackId,
         Status = video.Status,
-        CreatedAt = video.CreatedAt
+        CreatedAt = video.CreatedAt,
+        TranscriptionStatus = video.TranscriptionStatus,
+        RawTranscription = video.RawTranscription,
+        StructuredTranscription = video.StructuredTranscription,
+        DetectedLanguage = video.DetectedLanguage,
+        TranslatedTo = video.TranslatedTo,
+        Segments = video.Segments
     };
 }
 

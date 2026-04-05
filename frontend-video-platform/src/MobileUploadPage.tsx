@@ -118,7 +118,7 @@ export default function MobileUploadPage() {
     if (!file.type.startsWith('video/')) return
 
     if (file.size > limits.maxFileSizeBytes) {
-      setActiveUpload({ slotIndex, file, progress: 0, status: 'error', error: `Exceeds ${limits.maxFileSizeBytes / (1024 * 1024)} MB limit` })
+      setActiveUpload({ slotIndex, file, progress: 0, status: 'error', error: `Dépasse la limite de ${limits.maxFileSizeBytes / (1024 * 1024)} Mo` })
       return
     }
 
@@ -128,7 +128,7 @@ export default function MobileUploadPage() {
       const { formatted: duration, totalSeconds } = await getVideoDuration(file)
 
       if (totalSeconds > limits.maxDurationSeconds) {
-        setActiveUpload(prev => prev ? { ...prev, status: 'error', error: `Exceeds ${limits.maxDurationSeconds}s limit` } : null)
+        setActiveUpload(prev => prev ? { ...prev, status: 'error', error: `Dépasse la limite de ${limits.maxDurationSeconds}s` } : null)
         return
       }
 
@@ -139,7 +139,7 @@ export default function MobileUploadPage() {
       })
 
       if (!createRes.ok) {
-        let msg = 'Upload rejected'
+        let msg = 'Envoi rejeté'
         try { const errJson = await createRes.json(); if (errJson.message) msg = errJson.message } catch { /* */ }
         throw new Error(msg)
       }
@@ -166,14 +166,14 @@ export default function MobileUploadPage() {
       }
 
       xhr.onerror = () => {
-        setActiveUpload(prev => prev ? { ...prev, status: 'error', error: 'Network error' } : null)
+        setActiveUpload(prev => prev ? { ...prev, status: 'error', error: 'Erreur réseau' } : null)
       }
 
       xhr.send(file)
     } catch (err) {
       setActiveUpload(prev => prev ? {
         ...prev, status: 'error',
-        error: err instanceof Error ? err.message : 'Upload failed',
+        error: err instanceof Error ? err.message : 'Échec de l\'envoi',
       } : null)
     }
   }, [token, limits])
@@ -198,7 +198,7 @@ export default function MobileUploadPage() {
       <div className="m-page">
         <div className="m-center">
           <Loader2 size={28} className="spinner" />
-          <p className="m-center-text">Verifying link...</p>
+          <p className="m-center-text">Vérification du lien...</p>
         </div>
       </div>
     )
@@ -211,8 +211,8 @@ export default function MobileUploadPage() {
           <div className="m-expired-icon">
             <AlertCircle size={28} />
           </div>
-          <h2 className="m-center-title">Link Expired</h2>
-          <p className="m-center-text">Scan a new QR code from your computer to upload.</p>
+          <h2 className="m-center-title">Lien expiré</h2>
+          <p className="m-center-text">Scannez un nouveau QR code depuis votre ordinateur pour envoyer.</p>
         </div>
       </div>
     )
@@ -225,7 +225,7 @@ export default function MobileUploadPage() {
         <div className="m-nav">
           <div className="m-nav-left">
             <Film size={16} />
-            <span>Video Platform</span>
+            <span>Plateforme Vidéo</span>
           </div>
           <div className="m-nav-user">
             <User size={12} />
@@ -237,23 +237,23 @@ export default function MobileUploadPage() {
           <div className="m-done-icon">
             <CheckCircle size={36} />
           </div>
-          <h2 className="m-center-title">All videos uploaded!</h2>
+          <h2 className="m-center-title">Toutes les vidéos envoyées !</h2>
           <p className="m-center-text">
-            {uploadedVideos.length} video{uploadedVideos.length > 1 ? 's' : ''} sent to {displayName}'s library.
+            {uploadedVideos.length} vidéo{uploadedVideos.length > 1 ? 's' : ''} envoyée{uploadedVideos.length > 1 ? 's' : ''} dans la bibliothèque de {displayName}.
           </p>
           <p className="m-center-text m-center-text-hint">
-            You can go back to your computer to review and send them in the chat.
+            Vous pouvez retourner sur votre ordinateur pour les consulter et les envoyer dans le chat.
           </p>
           <div className="m-done-badge">
             <Film size={13} />
-            {uploadedVideos.length} / {maxVideos} videos
+            {uploadedVideos.length} / {maxVideos} vidéos
           </div>
         </div>
 
         {timeLeft && timeLeft !== 'Expired' && (
           <div className="m-footer">
             <Clock size={12} />
-            <span>Session expires in {timeLeft}</span>
+            <span>La session expire dans {timeLeft}</span>
           </div>
         )}
       </div>
@@ -306,7 +306,7 @@ export default function MobileUploadPage() {
           {activeUpload!.status === 'error' && (
             <>
               <div className="m-slot-error">{activeUpload!.error}</div>
-              <button className="m-slot-retry" onClick={() => setActiveUpload(null)}>Retry</button>
+              <button className="m-slot-retry" onClick={() => setActiveUpload(null)}>Réessayer</button>
             </>
           )}
         </div>
@@ -323,8 +323,8 @@ export default function MobileUploadPage() {
           <div className="m-slot-icon m-slot-icon-add">
             <Plus size={22} />
           </div>
-          <div className="m-slot-add-label">Add Video</div>
-          <div className="m-slot-add-hint">Slot {i + 1}</div>
+          <div className="m-slot-add-label">Ajouter une vidéo</div>
+          <div className="m-slot-add-hint">Emplacement {i + 1}</div>
         </button>
       )
     }
@@ -335,7 +335,7 @@ export default function MobileUploadPage() {
       <div className="m-nav">
         <div className="m-nav-left">
           <Film size={16} />
-          <span>Video Platform</span>
+          <span>Plateforme Vidéo</span>
         </div>
         <div className="m-nav-user">
           <User size={12} />
@@ -348,9 +348,9 @@ export default function MobileUploadPage() {
           <div className="m-hero-icon">
             <Upload size={20} />
           </div>
-          <h1 className="m-title">Upload Videos</h1>
+          <h1 className="m-title">Envoyer des vidéos</h1>
           <p className="m-hint">
-            {maxVideos} video{maxVideos > 1 ? 's' : ''} max — {limits.maxFileSizeBytes / (1024 * 1024)} MB, {limits.maxDurationSeconds}s each
+            {maxVideos} vidéo{maxVideos > 1 ? 's' : ''} max — {limits.maxFileSizeBytes / (1024 * 1024)} Mo, {limits.maxDurationSeconds}s chacune
           </p>
 
           {/* Session timer progress */}
@@ -360,7 +360,7 @@ export default function MobileUploadPage() {
                 <Clock size={11} />
                 Session — {timeLeft || '—'}
               </span>
-              <span className="m-session-count">{uploadedVideos.length} / {maxVideos} videos</span>
+              <span className="m-session-count">{uploadedVideos.length} / {maxVideos} vidéos</span>
             </div>
             <div className="m-session-bar-bg">
               <div
@@ -378,7 +378,7 @@ export default function MobileUploadPage() {
           {uploadedVideos.length >= maxVideos && (
             <div className="m-max-reached">
               <CheckCircle size={14} />
-              All videos uploaded
+              Toutes les vidéos envoyées
             </div>
           )}
 
@@ -395,7 +395,7 @@ export default function MobileUploadPage() {
       {timeLeft && timeLeft !== 'Expired' && (
         <div className="m-footer">
           <Clock size={12} />
-          <span>Session expires in {timeLeft}</span>
+          <span>La session expire dans {timeLeft}</span>
         </div>
       )}
     </div>

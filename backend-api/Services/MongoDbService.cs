@@ -80,6 +80,11 @@ public class MongoDbService
     public async Task<Video?> GetByIdAsync(string id) =>
         await _videos.Find(v => v.Id == id).FirstOrDefaultAsync();
 
+    public async Task<List<Video>> GetTranscribedByUserAsync(string userId) =>
+        await _videos.Find(v => v.UserId == userId && v.TranscriptionStatus != null)
+            .SortByDescending(v => v.CreatedAt)
+            .ToListAsync();
+
     public async Task<Video?> GetByMuxUploadIdAsync(string muxUploadId) =>
         await _videos.Find(v => v.MuxUploadId == muxUploadId).FirstOrDefaultAsync();
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Video, Upload, Film, Clock, HardDrive, X, Loader2, LogOut, User,
   Send, Paperclip, CheckCircle2, AlertCircle, Play, Trash2, MessageSquare,
-  Smartphone,
+  Smartphone, FileText, Mic,
 } from 'lucide-react'
 import MuxPlayer from '@mux/mux-player-react'
 import QRUploadSection from './QRUploadSection'
@@ -69,7 +69,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return date.toLocaleTimeString('fr-FR', { hour: 'numeric', minute: '2-digit' })
 }
 
 function getVideoDuration(file: File): Promise<{ formatted: string; totalSeconds: number }> {
@@ -99,7 +99,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
     {
       id: 'welcome',
       kind: 'system',
-      text: 'Welcome! Attach up to 2 videos, add a message, then hit send.',
+      text: 'Bienvenue ! Joignez jusqu\'à 2 vidéos, ajoutez un message, puis envoyez.',
       timestamp: new Date(),
     },
   ])
@@ -273,13 +273,13 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
   // Stage a file as pending attachment
   const addPendingFile = useCallback((file: File) => {
     if (!file.type.startsWith('video/')) {
-      addLocalMessage({ kind: 'system', text: `"${file.name}" is not a video file.`, isError: true })
+      addLocalMessage({ kind: 'system', text: `"${file.name}" n'est pas un fichier vidéo.`, isError: true })
       return
     }
     if (file.size > limits.maxFileSizeBytes) {
       addLocalMessage({
         kind: 'system',
-        text: `"${file.name}" (${formatFileSize(file.size)}) exceeds the ${limits.maxFileSizeBytes / (1024 * 1024)} MB limit.`,
+        text: `"${file.name}" (${formatFileSize(file.size)}) dépasse la limite de ${limits.maxFileSizeBytes / (1024 * 1024)} Mo.`,
         isError: true,
       })
       return
@@ -318,7 +318,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
       if (totalSeconds > limits.maxDurationSeconds) {
         updateEntry({
           uploadStatus: 'error',
-          uploadError: `Video is ${totalSeconds}s — exceeds the ${limits.maxDurationSeconds}s limit`,
+          uploadError: `La vidéo dure ${totalSeconds}s — dépasse la limite de ${limits.maxDurationSeconds}s`,
         })
         return null
       }
@@ -331,7 +331,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
 
       if (!createRes.ok) {
         if (createRes.status === 401) { onLogout(); return null }
-        let msg = 'Upload rejected by server'
+        let msg = 'Envoi rejeté par le serveur'
         try { const errJson = await createRes.json(); if (errJson.message) msg = errJson.message } catch { /* */ }
         throw new Error(msg)
       }
@@ -357,13 +357,13 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
             updateEntry({ uploadProgress: 100, uploadStatus: 'processing' })
             resolve(videoId)
           } else {
-            updateEntry({ uploadStatus: 'error', uploadError: `Upload failed (${xhr.status})` })
+            updateEntry({ uploadStatus: 'error', uploadError: `Échec de l'envoi (${xhr.status})` })
             resolve(null)
           }
         }
 
         xhr.onerror = () => {
-          updateEntry({ uploadStatus: 'error', uploadError: 'Network error during upload' })
+          updateEntry({ uploadStatus: 'error', uploadError: 'Erreur réseau pendant l\'envoi' })
           resolve(null)
         }
 
@@ -372,7 +372,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
     } catch (err) {
       updateEntry({
         uploadStatus: 'error',
-        uploadError: err instanceof Error ? err.message : 'Upload failed',
+        uploadError: err instanceof Error ? err.message : 'Échec de l\'envoi',
       })
       return null
     }
@@ -396,7 +396,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
 
     // Help command
     if (!hasAttachments && text.toLowerCase() === 'help') {
-      addLocalMessage({ kind: 'system', text: 'Use the attach button (paperclip) or drag & drop a video file into this chat to upload. Max 2 videos per send. Supported: MP4, MOV, AVI, WebM, MKV.' })
+      addLocalMessage({ kind: 'system', text: 'Utilisez le bouton trombone ou glissez-déposez une vidéo dans ce chat. Max 2 vidéos par envoi. Formats : MP4, MOV, AVI, WebM, MKV.' })
       setTextInput('')
       return
     }
@@ -531,7 +531,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
 
       addLocalMessage({
         kind: 'system',
-        text: `${newVideos.length} video${newVideos.length > 1 ? 's' : ''} received from phone — send within 1 min`,
+        text: `${newVideos.length} vidéo${newVideos.length > 1 ? 's' : ''} reçue(s) du téléphone — envoyez dans 1 min`,
       })
       startMobileTimer()
       scrollToBottom()
@@ -624,7 +624,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
               />
             </div>
             <span className="chat-progress-text">
-              Uploading {Math.round(uploadProgress || 0)}%
+              Envoi {Math.round(uploadProgress || 0)}%
             </span>
           </div>
         ) : (
@@ -639,13 +639,13 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
             {uploadStatus === 'processing' && (
               <div className="chat-status chat-status-processing">
                 <Loader2 size={12} className="spinner" />
-                Processing
+                Traitement
               </div>
             )}
             {uploadStatus === 'complete' && (
               <div className="chat-status chat-status-ready">
                 <CheckCircle2 size={12} />
-                Ready
+                Prêt
               </div>
             )}
             {uploadStatus === 'error' && (
@@ -662,7 +662,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
         <button
           className="chat-video-delete"
           onClick={() => deleteVideo(video.id)}
-          title="Delete video"
+          title="Supprimer la vidéo"
         >
           <Trash2 size={14} />
         </button>
@@ -685,16 +685,24 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
         <div className="chat-nav-content">
           <div className="chat-nav-brand">
             <Video size={24} />
-            <span>Video Platform</span>
+            <span>Plateforme Vidéo</span>
           </div>
           <div className="chat-nav-tabs">
             <button className="chat-nav-tab" onClick={() => navigate('/')}>
               <Upload size={16} />
-              <span>Upload</span>
+              <span>Envoi</span>
             </button>
             <button className="chat-nav-tab active">
               <MessageSquare size={16} />
-              <span>Chat Upload</span>
+              <span>Envoi Chat</span>
+            </button>
+            <button className="chat-nav-tab" onClick={() => navigate('/transcription')}>
+              <FileText size={16} />
+              <span>Transcription</span>
+            </button>
+            <button className="chat-nav-tab" onClick={() => navigate('/clarity')}>
+              <Mic size={16} />
+              <span>Copilote Client</span>
             </button>
           </div>
           <div className="chat-nav-right">
@@ -702,7 +710,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
               <User size={16} />
               <span>{user.displayName}</span>
             </div>
-            <button className="chat-logout-btn" onClick={onLogout} title="Sign out">
+            <button className="chat-logout-btn" onClick={onLogout} title="Déconnexion">
               <LogOut size={18} />
             </button>
           </div>
@@ -757,7 +765,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
           <div className="chat-drop-overlay">
             <div className="chat-drop-content">
               <Film size={40} />
-              <span>Drop your video here</span>
+              <span>Déposez votre vidéo ici</span>
             </div>
           </div>
         )}
@@ -783,14 +791,14 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
             <button
               className={`chat-action-btn${totalPending >= 2 ? ' disabled' : ''}`}
               onClick={() => totalPending < 2 && fileInputRef.current?.click()}
-              title={totalPending >= 2 ? 'Max 2 videos' : 'Attach video'}
+              title={totalPending >= 2 ? 'Max 2 vidéos' : 'Joindre une vidéo'}
             >
               <Paperclip size={20} />
             </button>
             <button
               className={`chat-action-btn${showQR ? ' active' : ''}`}
               onClick={() => setShowQR(s => !s)}
-              title="Upload from phone"
+              title="Envoyer depuis le téléphone"
             >
               <Smartphone size={20} />
             </button>
@@ -801,7 +809,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
             <input
               className="chat-text-input"
               type="text"
-              placeholder={totalPending > 0 ? 'Add a message (optional)...' : 'Type a message or attach a video...'}
+              placeholder={totalPending > 0 ? 'Ajouter un message (optionnel)...' : 'Tapez un message ou joignez une vidéo...'}
               value={textInput}
               onChange={e => setTextInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -852,11 +860,11 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
         {mobileCountdown !== null && pendingVideos.length > 0 ? (
           <div className={`chat-mobile-timer-banner${mobileCountdown <= 15 ? ' urgent' : ''}`}>
             <Clock size={12} />
-            <span>Phone attachments will be removed in <strong>{mobileCountdown}s</strong> if not sent</span>
+            <span>Les pièces jointes seront supprimées dans <strong>{mobileCountdown}s</strong> si non envoyées</span>
           </div>
         ) : (
           <div className="chat-input-hint">
-            MP4, MOV, AVI, WebM, MKV — Max {limits.maxFileSizeBytes / (1024 * 1024)} MB, {limits.maxDurationSeconds}s — Up to 2 videos per send
+            MP4, MOV, AVI, WebM, MKV — Max {limits.maxFileSizeBytes / (1024 * 1024)} Mo, {limits.maxDurationSeconds}s — Jusqu'à 2 vidéos par envoi
           </div>
         )}
       </div>

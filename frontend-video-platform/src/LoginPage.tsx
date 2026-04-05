@@ -26,7 +26,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setError(data.message || 'Invalid username or password')
+        setError(data.message || 'Nom d\'utilisateur ou mot de passe incorrect')
         return
       }
 
@@ -37,7 +37,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         displayName: data.displayName,
       })
     } catch {
-      setError('Connection error. Is the server running?')
+      setError('Erreur de connexion. Le serveur est-il en marche ?')
     } finally {
       setLoading(false)
     }
@@ -49,18 +49,18 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         <div className="login-logo">
           <Video size={32} />
         </div>
-        <h1>Video Platform</h1>
-        <p className="login-subtitle">Sign in to manage your videos</p>
+        <h1>Plateforme Vidéo</h1>
+        <p className="login-subtitle">Connectez-vous pour gérer vos vidéos</p>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="login-field">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">Nom d'utilisateur</label>
             <input
               id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
+              placeholder="Entrez votre nom d'utilisateur"
               autoComplete="username"
               autoFocus
               required
@@ -68,13 +68,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </div>
 
           <div className="login-field">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">Mot de passe</label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder="Entrez votre mot de passe"
               autoComplete="current-password"
               required
             />
@@ -88,7 +88,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             ) : (
               <LogIn size={18} />
             )}
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
 

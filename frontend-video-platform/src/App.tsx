@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Upload, Play, X, Film, Clock, HardDrive, CloudUpload, Video,
   Trash2, RefreshCw, AlertCircle, Loader2, LogOut, User, Settings,
-  ShieldAlert, CheckCircle2, MessageSquare,
+  ShieldAlert, CheckCircle2, MessageSquare, FileText, Mic,
 } from 'lucide-react'
 import MuxPlayer from '@mux/mux-player-react'
 import QRUploadSection from './QRUploadSection'
@@ -48,7 +48,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('en-US', {
+  return new Date(date).toLocaleDateString('fr-FR', {
     month: 'short', day: 'numeric', year: 'numeric',
   })
 }
@@ -71,10 +71,10 @@ function getVideoDuration(file: File): Promise<{ formatted: string; totalSeconds
 
 function statusLabel(status: string) {
   switch (status) {
-    case 'waiting_for_upload': return 'Waiting'
-    case 'processing': return 'Processing'
-    case 'ready': return 'Ready'
-    case 'errored': return 'Error'
+    case 'waiting_for_upload': return 'En attente'
+    case 'processing': return 'Traitement'
+    case 'ready': return 'Prêt'
+    case 'errored': return 'Erreur'
     default: return status
   }
 }
@@ -196,13 +196,13 @@ function App({ token, user, onLogout }: AppProps) {
         setEditDurationSec(String(data.maxDurationSeconds))
         setEditQrExpMin(String(data.qrExpirationMinutes))
         setEditMaxVideos(String(data.maxVideosPerSession))
-        addToast('success', `Limits updated — ${data.maxFileSizeBytes / (1024 * 1024)} MB, ${data.maxDurationSeconds}s, QR ${data.qrExpirationMinutes}min, ${data.maxVideosPerSession} videos`)
+        addToast('success', `Limites mises à jour — ${data.maxFileSizeBytes / (1024 * 1024)} Mo, ${data.maxDurationSeconds}s, QR ${data.qrExpirationMinutes}min, ${data.maxVideosPerSession} vidéos`)
       } else {
-        addToast('error', 'Failed to save settings')
+        addToast('error', 'Échec de la sauvegarde')
       }
     } catch (err) {
       console.error('Failed to save upload limits:', err)
-      addToast('error', 'Failed to save settings')
+      addToast('error', 'Échec de la sauvegarde')
     } finally {
       setSavingSettings(false)
     }
@@ -236,7 +236,7 @@ function App({ token, user, onLogout }: AppProps) {
       setRejection({
         fileName: file.name,
         fileSize: file.size,
-        reason: `File is ${formatFileSize(file.size)} — exceeds the ${limits.maxFileSizeBytes / (1024 * 1024)} MB limit`,
+        reason: `Le fichier fait ${formatFileSize(file.size)} — dépasse la limite de ${limits.maxFileSizeBytes / (1024 * 1024)} Mo`,
       })
       return
     }
@@ -251,7 +251,7 @@ function App({ token, user, onLogout }: AppProps) {
         setRejection({
           fileName: file.name,
           fileSize: file.size,
-          reason: `Video is ${totalSeconds}s long — exceeds the ${limits.maxDurationSeconds} second limit`,
+          reason: `La vidéo dure ${totalSeconds}s — dépasse la limite de ${limits.maxDurationSeconds} secondes`,
         })
         return
       }
@@ -268,7 +268,7 @@ function App({ token, user, onLogout }: AppProps) {
 
       if (!createRes.ok) {
         if (createRes.status === 401) { onLogout(); return }
-        let msg = 'Upload rejected by server'
+        let msg = 'Envoi rejeté par le serveur'
         try {
           const errJson = await createRes.json()
           if (errJson.message) msg = errJson.message
@@ -297,14 +297,14 @@ function App({ token, user, onLogout }: AppProps) {
           setTimeout(() => setUpload(null), 3000)
         } else {
           setUpload(prev => prev ? {
-            ...prev, status: 'error', error: `Upload failed (${xhr.status})`,
+            ...prev, status: 'error', error: `Échec de l'envoi (${xhr.status})`,
           } : null)
         }
       }
 
       xhr.onerror = () => {
         setUpload(prev => prev ? {
-          ...prev, status: 'error', error: 'Network error during upload',
+          ...prev, status: 'error', error: 'Erreur réseau pendant l\'envoi',
         } : null)
       }
 
@@ -314,7 +314,7 @@ function App({ token, user, onLogout }: AppProps) {
       setUpload(prev => prev ? {
         ...prev,
         status: 'error',
-        error: err instanceof Error ? err.message : 'Upload failed',
+        error: err instanceof Error ? err.message : 'Échec de l\'envoi',
       } : null)
     }
   }, [fetchVideos, token, limits])
@@ -362,16 +362,24 @@ function App({ token, user, onLogout }: AppProps) {
         <div className="nav-content">
           <div className="nav-brand">
             <Video size={24} />
-            <span>Video Platform</span>
+            <span>Plateforme Vidéo</span>
           </div>
           <div className="nav-tabs">
             <button className="nav-tab active">
               <Upload size={16} />
-              <span>Upload</span>
+              <span>Envoi</span>
             </button>
             <button className="nav-tab" onClick={() => navigate('/chat')}>
               <MessageSquare size={16} />
-              <span>Chat Upload</span>
+              <span>Envoi Chat</span>
+            </button>
+            <button className="nav-tab" onClick={() => navigate('/transcription')}>
+              <FileText size={16} />
+              <span>Transcription</span>
+            </button>
+            <button className="nav-tab" onClick={() => navigate('/clarity')}>
+              <Mic size={16} />
+              <span>Copilote Client</span>
             </button>
           </div>
           <div className="nav-right">
@@ -379,19 +387,19 @@ function App({ token, user, onLogout }: AppProps) {
               <User size={16} />
               <span>{user.displayName}</span>
             </div>
-            <button className="refresh-btn" onClick={fetchVideos} title="Refresh">
+            <button className="refresh-btn" onClick={fetchVideos} title="Actualiser">
               <RefreshCw size={18} />
             </button>
             <button
               className={`refresh-btn${showSettings ? ' active' : ''}`}
               onClick={() => setShowSettings(s => !s)}
-              title="Upload limits"
+              title="Limites d'envoi"
             >
               <Settings size={18} />
             </button>
-            <button className="logout-btn" onClick={onLogout} title="Sign out">
+            <button className="logout-btn" onClick={onLogout} title="Déconnexion">
               <LogOut size={18} />
-              <span>Sign out</span>
+              <span>Déconnexion</span>
             </button>
           </div>
         </div>
@@ -401,17 +409,17 @@ function App({ token, user, onLogout }: AppProps) {
       <main className="main-content">
         {/* Upload Section */}
         <section className="upload-section">
-          <h1 className="section-title">Upload Video</h1>
+          <h1 className="section-title">Envoyer une vidéo</h1>
           <p className="section-subtitle">
-            Drag and drop a file or scan the QR code to upload from your phone
+            Glissez-déposez un fichier ou scannez le QR code pour envoyer depuis votre téléphone
           </p>
 
           {showSettings && (
             <div className="settings-bar">
               <Settings size={15} className="settings-bar-icon" />
-              <span className="settings-bar-label">Limits</span>
+              <span className="settings-bar-label">Limites</span>
               <div className="settings-bar-group">
-                <span className="settings-bar-hint">Size</span>
+                <span className="settings-bar-hint">Taille</span>
                 <div className="settings-input-wrap">
                   <input
                     type="number"
@@ -420,12 +428,12 @@ function App({ token, user, onLogout }: AppProps) {
                     value={editSizeMB}
                     onChange={e => setEditSizeMB(e.target.value)}
                   />
-                  <span className="settings-input-unit">MB</span>
+                  <span className="settings-input-unit">Mo</span>
                 </div>
               </div>
               <div className="settings-bar-divider" />
               <div className="settings-bar-group">
-                <span className="settings-bar-hint">Duration</span>
+                <span className="settings-bar-hint">Durée</span>
                 <div className="settings-input-wrap">
                   <input
                     type="number"
@@ -439,7 +447,7 @@ function App({ token, user, onLogout }: AppProps) {
               </div>
               <div className="settings-bar-divider" />
               <div className="settings-bar-group">
-                <span className="settings-bar-hint">QR link</span>
+                <span className="settings-bar-hint">Lien QR</span>
                 <div className="settings-input-wrap">
                   <input
                     type="number"
@@ -453,7 +461,7 @@ function App({ token, user, onLogout }: AppProps) {
               </div>
               <div className="settings-bar-divider" />
               <div className="settings-bar-group">
-                <span className="settings-bar-hint">Videos</span>
+                <span className="settings-bar-hint">Vidéos</span>
                 <div className="settings-input-wrap">
                   <input
                     type="number"
@@ -470,7 +478,7 @@ function App({ token, user, onLogout }: AppProps) {
                 onClick={saveLimits}
                 disabled={savingSettings}
               >
-                {savingSettings ? 'Saving...' : 'Apply'}
+                {savingSettings ? 'Sauvegarde...' : 'Appliquer'}
               </button>
             </div>
           )}
@@ -486,17 +494,17 @@ function App({ token, user, onLogout }: AppProps) {
               <div className="upload-icon">
                 <CloudUpload size={24} />
               </div>
-              <h3>Drop your video here</h3>
-              <p>or click to browse</p>
+              <h3>Déposez votre vidéo ici</h3>
+              <p>ou cliquez pour parcourir</p>
               <button
                 className="upload-btn"
                 onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}
               >
                 <Upload size={16} />
-                Choose File
+                Choisir un fichier
               </button>
               <div className="upload-formats">
-                MP4, MOV, AVI, WebM, MKV — Max {limits.maxFileSizeBytes / (1024 * 1024)} MB, {limits.maxDurationSeconds}s
+                MP4, MOV, AVI, WebM, MKV — Max {limits.maxFileSizeBytes / (1024 * 1024)} Mo, {limits.maxDurationSeconds}s
               </div>
             </div>
 
@@ -518,7 +526,7 @@ function App({ token, user, onLogout }: AppProps) {
                 <ShieldAlert size={22} />
               </div>
               <div className="rejection-body">
-                <div className="rejection-title">Upload blocked</div>
+                <div className="rejection-title">Envoi bloqué</div>
                 <div className="rejection-reason">{rejection.reason}</div>
                 <div className="rejection-file">
                   <Film size={13} />
@@ -545,7 +553,7 @@ function App({ token, user, onLogout }: AppProps) {
                     <div className="upload-file-name">{upload.file.name}</div>
                     <div className="upload-file-size">
                       {formatFileSize(upload.file.size)}
-                      {upload.status === 'processing' && ' — Processing on Mux...'}
+                      {upload.status === 'processing' && ' — Traitement sur Mux...'}
                       {upload.status === 'error' && ` — ${upload.error}`}
                     </div>
                   </div>
@@ -567,9 +575,9 @@ function App({ token, user, onLogout }: AppProps) {
               </div>
               <div className="upload-progress-text">
                 <span>
-                  {upload.status === 'uploading' && 'Uploading to Mux...'}
-                  {upload.status === 'processing' && 'Upload complete — Mux is processing'}
-                  {upload.status === 'error' && 'Upload failed'}
+                  {upload.status === 'uploading' && 'Envoi vers Mux...'}
+                  {upload.status === 'processing' && 'Envoi terminé — Mux traite la vidéo'}
+                  {upload.status === 'error' && 'Échec de l\'envoi'}
                 </span>
                 <span>{Math.round(upload.progress)}%</span>
               </div>
@@ -580,24 +588,24 @@ function App({ token, user, onLogout }: AppProps) {
         {/* Video Library */}
         <section className="video-section">
           <div className="video-section-header">
-            <h1 className="section-title">Library</h1>
+            <h1 className="section-title">Bibliothèque</h1>
             <span className="video-count">
-              {videos.length} video{videos.length !== 1 ? 's' : ''}
+              {videos.length} vidéo{videos.length !== 1 ? 's' : ''}
             </span>
           </div>
 
           {loading ? (
             <div className="empty-state">
               <Loader2 size={32} className="spinner" />
-              <h3>Loading videos...</h3>
+              <h3>Chargement des vidéos...</h3>
             </div>
           ) : videos.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">
                 <Film size={32} />
               </div>
-              <h3>No videos yet</h3>
-              <p>Upload your first video to get started</p>
+              <h3>Aucune vidéo</h3>
+              <p>Envoyez votre première vidéo pour commencer</p>
             </div>
           ) : (
             <div className="video-grid">
@@ -655,7 +663,7 @@ function App({ token, user, onLogout }: AppProps) {
                     <button
                       className="delete-btn"
                       onClick={() => deleteVideo(video.id)}
-                      title="Delete video"
+                      title="Supprimer la vidéo"
                     >
                       <Trash2 size={14} />
                     </button>

@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Video, FileText, LogOut, User, Upload, MessageSquare,
-  Mic, MicOff, CloudUpload, Loader2, AlertCircle, CheckCircle2,
-  RotateCcw, Copy, Square, X,
+  Mic, CloudUpload, Loader2, AlertCircle, CheckCircle2,
+  RotateCcw, Copy, Square,
 } from 'lucide-react'
 import './ClarityPage.css'
 
@@ -30,7 +30,7 @@ export default function ClarityPage({ token, user, onLogout }: ClarityPageProps)
   const [reformulated, setReformulated] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [dragging, setDragging] = useState(false)
+  const [, setDragging] = useState(false)
   const [progressMsg, setProgressMsg] = useState('')
   const submittingRef = useRef(false)
 
@@ -248,7 +248,7 @@ export default function ClarityPage({ token, user, onLogout }: ClarityPageProps)
                       onDragLeave={() => setDragging(false)}
                       onDrop={handleDrop}
                     >
-                      <button className="cl-mic-btn" onClick={startRecording} disabled={phase === 'transcribing'}>
+                      <button className="cl-mic-btn" onClick={startRecording} disabled={phase !== 'record'}>
                         <Mic size={22} />
                       </button>
                       <span className="cl-input-hint">Appuyez pour enregistrer ou déposez un fichier audio ici</span>

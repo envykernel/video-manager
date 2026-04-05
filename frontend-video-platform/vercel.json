@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://video-backend.lemonhill-e469c5cf.eastus.azurecontainerapps.io/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

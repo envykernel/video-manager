@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { Upload, CheckCircle, AlertCircle, Film, Loader2, Clock, User, Plus } from 'lucide-react'
+import { Upload, CheckCircle, AlertCircle, Film, Loader2, Clock, User, Plus, Monitor } from 'lucide-react'
 import './MobileUploadPage.css'
 
 const API_BASE = '/api'
@@ -375,10 +375,15 @@ export default function MobileUploadPage() {
             {slots}
           </div>
 
-          {uploadedVideos.length >= maxVideos && (
-            <div className="m-max-reached">
-              <CheckCircle size={14} />
-              Toutes les vidéos envoyées
+          {uploadedVideos.length > 0 && !activeUpload && (
+            <div className="m-go-back">
+              <Monitor size={16} />
+              <p className="m-go-back-text">
+                {uploadedVideos.length >= maxVideos
+                  ? 'Toutes les vidéos ont été envoyées !'
+                  : `${uploadedVideos.length} vidéo${uploadedVideos.length > 1 ? 's' : ''} envoyée${uploadedVideos.length > 1 ? 's' : ''}.`}
+                {' '}Retournez sur votre ordinateur pour continuer.
+              </p>
             </div>
           )}
 

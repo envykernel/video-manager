@@ -97,8 +97,9 @@
 
 .qr-buttons {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   margin-top: 12px;
 }
@@ -106,15 +107,16 @@
 .qr-test-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: var(--apple-blue);
   color: white;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 980px;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   text-decoration: none;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .qr-test-btn:hover {
@@ -124,16 +126,17 @@
 .qr-refresh-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: none;
   border: 1px solid var(--apple-gray-4);
   color: var(--apple-gray-1);
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 980px;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .qr-refresh-btn:hover {

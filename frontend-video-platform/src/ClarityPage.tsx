@@ -158,7 +158,7 @@ export default function ClarityPage({ token, user, onLogout }: ClarityPageProps)
     <div className="app">
       <nav className="nav">
         <div className="nav-content">
-          <div className="nav-brand"><Video size={24} /><span>Plateforme Vidéo</span></div>
+          <div className="nav-brand"><Video size={24} /><span>Plateforme Vidéo</span><span className="app-version">v{__APP_VERSION__}</span></div>
           <div className="nav-tabs">
             <button className="nav-tab" onClick={() => navigate('/')}><Upload size={16} /><span>Envoi</span></button>
             <button className="nav-tab" onClick={() => navigate('/chat')}><MessageSquare size={16} /><span>Envoi Chat</span></button>

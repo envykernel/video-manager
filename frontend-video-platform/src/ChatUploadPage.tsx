@@ -686,6 +686,7 @@ function ChatUploadPage({ token, user, onLogout }: ChatUploadPageProps) {
           <div className="chat-nav-brand">
             <Video size={24} />
             <span>Plateforme Vidéo</span>
+            <span className="app-version">v{__APP_VERSION__}</span>
           </div>
           <div className="chat-nav-tabs">
             <button className="chat-nav-tab" onClick={() => navigate('/')}>

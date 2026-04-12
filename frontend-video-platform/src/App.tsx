@@ -363,6 +363,7 @@ function App({ token, user, onLogout }: AppProps) {
           <div className="nav-brand">
             <Video size={24} />
             <span>Plateforme Vidéo</span>
+            <span className="app-version">v{__APP_VERSION__}</span>
           </div>
           <div className="nav-tabs">
             <button className="nav-tab active">

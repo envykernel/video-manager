@@ -48,3 +48,14 @@ button {
 input, textarea {
   font-family: inherit;
 }
+
+.app-version {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--apple-gray-1);
+  background: var(--apple-gray-6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  letter-spacing: 0;
+}

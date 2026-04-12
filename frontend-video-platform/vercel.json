@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "${BACKEND_URL}/api/:path*"
+      "destination": "https://video-backend.lemonhill-e469c5cf.eastus.azurecontainerapps.io/api/:path*"
     },
     {
       "source": "/(.*)",

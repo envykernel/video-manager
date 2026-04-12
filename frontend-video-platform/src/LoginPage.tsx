@@ -18,19 +18,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setLoading(true)
 
     try {
-      const url = '/api/auth/login'
-      const res = await fetch(url, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       })
 
       if (!res.ok) {
-        const text = await res.text()
-        let parsed: any = {}
-        try { parsed = JSON.parse(text) } catch {}
-        const details = `[${res.status} ${res.statusText}] ${parsed.message || text.substring(0, 200)}`
-        setError(details)
+        const data = await res.json().catch(() => ({}))
+        setError(data.message || 'Nom d\'utilisateur ou mot de passe incorrect')
         return
       }
 
@@ -40,8 +36,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         username: data.username,
         displayName: data.displayName,
       })
-    } catch (err: any) {
-      setError(`Erreur réseau: ${err.message || err}`)
+    } catch {
+      setError('Erreur de connexion. Le serveur est-il en marche ?')
     } finally {
       setLoading(false)
     }

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.Channels;
 using BackendApi.Configuration;
 using BackendApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -22,8 +23,16 @@ builder.Services.AddSingleton<WhisperService>();
 builder.Services.AddSingleton<TranscriptionAgentService>();
 builder.Services.AddSingleton<ClarityAgentService>();
 
+// Background transcription worker
+builder.Services.AddSingleton(Channel.CreateBounded<TranscriptionWorkItem>(100));
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<TranscriptionWorker>();
+
 // JWT Authentication
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "VideoAppSuperSecretKey2024!AtLeast32Chars";
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? throw new InvalidOperationException("Jwt:Secret must be configured");
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+builder.Services.AddSingleton(signingKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -35,7 +44,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = "VideoApp",
             ValidAudience = "VideoApp",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+            IssuerSigningKey = signingKey
         };
     });
 

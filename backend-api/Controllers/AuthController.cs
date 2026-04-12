@@ -1,6 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using BackendApi.Models;
 using BackendApi.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -13,12 +12,12 @@ namespace BackendApi.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly MongoDbService _db;
-    private readonly IConfiguration _configuration;
+    private readonly SymmetricSecurityKey _jwtKey;
 
-    public AuthController(MongoDbService db, IConfiguration configuration)
+    public AuthController(MongoDbService db, SymmetricSecurityKey jwtKey)
     {
         _db = db;
-        _configuration = configuration;
+        _jwtKey = jwtKey;
     }
 
     [HttpPost("login")]
@@ -59,9 +58,7 @@ public class AuthController : ControllerBase
 
     private string GenerateJwtToken(User user)
     {
-        var jwtSecret = _configuration["Jwt:Secret"] ?? "VideoAppSuperSecretKey2024!AtLeast32Chars";
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var credentials = new SigningCredentials(_jwtKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
         {

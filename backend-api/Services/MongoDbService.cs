@@ -1,6 +1,5 @@
-using System.Security.Cryptography;
-using System.Text;
 using BackendApi.Models;
+using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 
 namespace BackendApi.Services;
@@ -12,9 +11,11 @@ public class MongoDbService
     private readonly IMongoCollection<User> _users;
     private readonly IMongoCollection<UploadLimits> _uploadLimits;
     private readonly IMongoCollection<ChatMessage> _chatMessages;
+    private readonly ILogger<MongoDbService> _logger;
 
-    public MongoDbService(IConfiguration configuration)
+    public MongoDbService(IConfiguration configuration, ILogger<MongoDbService> logger)
     {
+        _logger = logger;
         var connectionString = configuration["MongoDB:ConnectionString"]
             ?? "mongodb://localhost:27017";
         var databaseName = configuration["MongoDB:DatabaseName"]
@@ -28,22 +29,54 @@ public class MongoDbService
         _uploadLimits = database.GetCollection<UploadLimits>("upload_limits");
         _chatMessages = database.GetCollection<ChatMessage>("chat_messages");
 
-        SeedUsersAsync().GetAwaiter().GetResult();
+        EnsureIndexes();
+        SeedUsersAsync(configuration).GetAwaiter().GetResult();
     }
 
-    public static string HashPassword(string password)
+    private void EnsureIndexes()
     {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(bytes);
+        _videos.Indexes.CreateMany(new[]
+        {
+            new CreateIndexModel<Video>(Builders<Video>.IndexKeys.Ascending(v => v.UserId)),
+            new CreateIndexModel<Video>(Builders<Video>.IndexKeys.Ascending(v => v.MuxUploadId)),
+            new CreateIndexModel<Video>(Builders<Video>.IndexKeys.Ascending(v => v.MuxAssetId)),
+            new CreateIndexModel<Video>(Builders<Video>.IndexKeys.Ascending(v => v.UploadToken)),
+        });
+
+        _uploadTokens.Indexes.CreateOne(
+            new CreateIndexModel<UploadToken>(
+                Builders<UploadToken>.IndexKeys.Ascending(t => t.Token),
+                new CreateIndexOptions { Unique = true }));
+
+        _users.Indexes.CreateOne(
+            new CreateIndexModel<User>(
+                Builders<User>.IndexKeys.Ascending(u => u.Username),
+                new CreateIndexOptions { Unique = true }));
+
+        _chatMessages.Indexes.CreateOne(
+            new CreateIndexModel<ChatMessage>(
+                Builders<ChatMessage>.IndexKeys.Ascending(m => m.UserId)));
     }
+
+    public static string HashPassword(string password) =>
+        BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
 
     public static bool VerifyPassword(string password, string hash) =>
-        HashPassword(password) == hash;
+        BCrypt.Net.BCrypt.Verify(password, hash);
 
-    private async Task SeedUsersAsync()
+    private async Task SeedUsersAsync(IConfiguration configuration)
     {
         var count = await _users.CountDocumentsAsync(_ => true);
         if (count > 0) return;
+
+        var saraPassword = configuration["Seed:SaraPassword"];
+        var helenePassword = configuration["Seed:HelenePassword"];
+
+        if (string.IsNullOrEmpty(saraPassword) || string.IsNullOrEmpty(helenePassword))
+        {
+            _logger.LogWarning("Seed credentials not configured (Seed:SaraPassword / Seed:HelenePassword). Skipping user seeding.");
+            return;
+        }
 
         var users = new List<User>
         {
@@ -51,13 +84,13 @@ public class MongoDbService
             {
                 Username = "sara",
                 DisplayName = "Sara",
-                PasswordHash = HashPassword("sara123")
+                PasswordHash = HashPassword(saraPassword)
             },
             new()
             {
                 Username = "helene",
                 DisplayName = "Helene",
-                PasswordHash = HashPassword("helene123")
+                PasswordHash = HashPassword(helenePassword)
             }
         };
 

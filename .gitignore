@@ -18,3 +18,6 @@ appsettings.Development.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Code analysis / improvements
+code-improvements/

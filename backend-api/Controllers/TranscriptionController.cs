@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authorization;
@@ -14,20 +15,20 @@ namespace BackendApi.Controllers;
 [Authorize]
 public class TranscriptionController : ControllerBase
 {
-    private readonly TranscriptionAgentService _agentService;
+    private readonly Channel<TranscriptionWorkItem> _queue;
     private readonly MuxService _mux;
     private readonly MongoDbService _db;
     private readonly TranscriptionOptions _config;
     private readonly ILogger<TranscriptionController> _logger;
 
     public TranscriptionController(
-        TranscriptionAgentService agentService,
+        Channel<TranscriptionWorkItem> queue,
         MuxService mux,
         MongoDbService db,
         IOptions<TranscriptionOptions> transcriptionOptions,
         ILogger<TranscriptionController> logger)
     {
-        _agentService = agentService;
+        _queue = queue;
         _mux = mux;
         _db = db;
         _config = transcriptionOptions.Value;
@@ -94,61 +95,9 @@ public class TranscriptionController : ControllerBase
 
         _logger.LogInformation("Created video {VideoId} for transcription, uploading to Mux", video.Id);
 
-        // Upload file to Mux in background + run transcription
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                // Upload to Mux
-                using var httpClient = new HttpClient();
-                await using var fileStream = System.IO.File.OpenRead(tempFilePath);
-                var content = new StreamContent(fileStream);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("video/mp4");
-                var response = await httpClient.PutAsync(uploadUrl, content);
-                response.EnsureSuccessStatusCode();
-
-                _logger.LogInformation("Video {VideoId} uploaded to Mux", video.Id);
-
-                // Run transcription
-                var currentVideo = await _db.GetByIdAsync(video.Id!);
-                if (currentVideo != null)
-                {
-                    currentVideo.TranscriptionStatus = "transcribing";
-                    await _db.UpdateAsync(video.Id!, currentVideo);
-                }
-
-                var result = await _agentService.TranscribeVideoAsync(tempFilePath, translateTo);
-
-                // Save transcription to video
-                currentVideo = await _db.GetByIdAsync(video.Id!);
-                if (currentVideo != null)
-                {
-                    currentVideo.TranscriptionStatus = "completed";
-                    currentVideo.RawTranscription = result.RawTranscription;
-                    currentVideo.StructuredTranscription = result.StructuredTranscription;
-                    currentVideo.DetectedLanguage = result.DetectedLanguage;
-                    currentVideo.TranslatedTo = result.TranslatedTo;
-                    currentVideo.Segments = result.Segments;
-                    await _db.UpdateAsync(video.Id!, currentVideo);
-                }
-
-                _logger.LogInformation("Transcription completed for video {VideoId}", video.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Background processing failed for video {VideoId}", video.Id);
-                var currentVideo = await _db.GetByIdAsync(video.Id!);
-                if (currentVideo != null)
-                {
-                    currentVideo.TranscriptionStatus = "failed";
-                    await _db.UpdateAsync(video.Id!, currentVideo);
-                }
-            }
-            finally
-            {
-                if (System.IO.File.Exists(tempFilePath)) System.IO.File.Delete(tempFilePath);
-            }
-        });
+        // Enqueue background work
+        await _queue.Writer.WriteAsync(new TranscriptionWorkItem(
+            video.Id!, tempFilePath, uploadUrl, translateTo));
 
         return Ok(new { videoId = video.Id });
     }

@@ -15,12 +15,12 @@ public class AudioExtractionService
     {
         var outputPath = Path.ChangeExtension(videoFilePath, ".wav");
 
-        var process = new Process
+        using var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = "ffmpeg",
-                Arguments = $"-i \"{videoFilePath}\" -vn -acodec pcm_s16le -ar 16000 -ac 1 \"{outputPath}\" -y",
+                ArgumentList = { "-i", videoFilePath, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", outputPath, "-y" },
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -32,10 +32,11 @@ public class AudioExtractionService
 
         process.Start();
 
-        var stderr = await process.StandardError.ReadToEndAsync();
-
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
-        await process.WaitForExitAsync(cts.Token);
+        var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+        var waitTask = process.WaitForExitAsync(cts.Token);
+        await Task.WhenAll(stderrTask, waitTask);
+        var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
         {
